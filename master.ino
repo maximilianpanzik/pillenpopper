@@ -96,6 +96,13 @@ void setup()
 
   lightshow(); //lichtwelle
 }
+void LCD_schalten(){
+  //!!
+}
+bool sortierer_positionieren(){
+  //!!
+  return 1;
+}
 void light(int pins[2])
 {
   /**
@@ -192,6 +199,14 @@ void update_tage_button_selection()
       }
     }
   }
+}
+bool auf_neuen_blister_warten(){
+  //!!
+  return 1;
+}
+bool blister_auswerfen(){
+  //!!
+  return 1;
 }
 bool abfrage_ok_button(){
 /**
@@ -290,63 +305,68 @@ bool press_pill()
 void loop()
 {
   currentMillis = millis(); // aktuelle Zeit speichern
+  LCD_schalten();
   waiting_for_start();
   LED_schalten();
-  //!!sortierer positionieren
-      switch ( status )
+  sortierer_positionieren();
+
+  switch (status)
+  {
+  case 0: // wait for start
+    if (waiting_for_start())
+    {
+      status = 1;
+    }
+    break;
+  case 1: // blister positionieren
+    if (blisterPosition < 6)
+    {
+      if (turn_to_nupsi())
       {
-      case 0: // wait for start
-        if (waiting_for_start())
+        blisterPosition++;
+        status = 2;
+        startMillisServoDruck = currentMillis;
+        startMillisServoSchneid = currentMillis;
+      }
+      else
+      {
+        if (blister_auswerfen())
         {
-          status = 1;
-        }
-        break;
-      case 1: // blister positionieren
-      if( blisterPosition < 6){
-        if(turn_to_nupsi()){
-          blisterPosition++;
-          status = 2;
-          startMillisServoDruck = currentMillis;
-          startMillisServoSchneid = currentMillis;
-        }
-        else{
-          //if(!!zurückfahren){
-          
-          //if(!!auf neuen blister warten) 
-          blisterPosition = 0;
-          //}}
+
+          if (auf_neuen_blister_warten())
+            blisterPosition = 0;
         }
       }
-      break;
-      case 2: // press&cut
-        if (blisterPosition == 1)
-        {
-          if (cut_blister())
-          {
-            status = 1;
-          }
-        }
-        else if (blisterPosition == 6)
-        {
-          if (press_pill())
-          {
-            status = 1;
-          }
-        }
-        else
-        {
-          if (press_pill() && cut_blister)
-          {
-            status = 1;
-          }
-        }
-
-
-        break;
-      case 3: //
-
-        break;
+    }
+    break;
+  case 2: // press&cut
+    if (blisterPosition == 1)
+    {
+      if (cut_blister())
+      {
+        status = 1;
       }
+    }
+    else if (blisterPosition == 6)
+    {
+      if (press_pill())
+      {
+        status = 1;
+      }
+    }
+    else
+    {
+      if (press_pill() && cut_blister)
+      {
+        status = 1;
+      }
+    }
+
+    break;
+  case 3: //
+
+    break;
+  }
 
   waiting_for_start();
   if (turn_to_nupsi() == true)
