@@ -44,10 +44,12 @@ int charlieplexingLeds[2][7][2] =                           // schaltplan, um LE
 int ledIncrement = 0;
 //bool tageButtonValues[] = {1,1,1,1,1,1,1};      // 0: nicht aktiv, 1: aktiv
 bool tageButtonValues[] = {0,1,0,1,1,1,1};        // 0: nicht aktiv, 1: aktiv
-//int fuellStand[] = {0, 0, 0, 0, 0, 0, 0};       // 0: nicht voll, 1: voll
-int fuellStand[] = {1, 1, 1, 0, 0, 0, 0};         // 0: nicht voll, 1: voll
+//int fuellStandBox[] = {0, 0, 0, 0, 0, 0, 0};       // 0: nicht voll, 1: voll
+int fuellStandBox[] = {1, 1, 1, 0, 0, 0, 0};         // 0: nicht voll, 1: voll
 
-int status = 0; // 0: waiting for start, 1: turn to nupsi, 2: cut, 3: cut&press, 4: press
+int blisterPosition = 0; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
+
+int status = 0; // 0: waiting for start, 1: turn to nupsi, 2: cut&press
 int statusSortierer = 0; //0: not in position, 1: in position
 
 bool eingefahren = true;
@@ -120,7 +122,7 @@ void LED_schalten()
 {
   /** LED_schalten
    * @brief schaltet LEDs abhängig von Button Selection (bool tageButtonValues[]) und
-   * Füllstatus (int fuellStand []) schaltet alle LED_PERIODE ms eine LED
+   * Füllstatus (int fuellStandBox []) schaltet alle LED_PERIODE ms eine LED
    *
    **/
   if (currentMillis - startMillisLed >= LED_PERIODE)
@@ -129,9 +131,9 @@ void LED_schalten()
     if (tageButtonValues[ledIncrement])
     { // wenn Tag # button aktiv
 
-      // blau (charlieplexingLeds[0][]) wenn tag # fuellstand leer,
-      // grün (charlieplexingLeds[1][]) wenn tag # fuellstand voll
-      light(charlieplexingLeds[fuellStand[ledIncrement]][ledIncrement]);
+      // blau (charlieplexingLeds[0][]) wenn tag # fuellStandBox leer,
+      // grün (charlieplexingLeds[1][]) wenn tag # fuellStandBox voll
+      light(charlieplexingLeds[fuellStandBox[ledIncrement]][ledIncrement]);
     }
     // incrementieren wenn <6, sonst 0
     //ledIncrement = (ledIncrement < 6) ? ledIncrement++ : 0;
@@ -206,24 +208,17 @@ bool abfrage_ok_button(){
   return buttonOkValue;
 
 }
-void waiting_for_start()
+bool waiting_for_start()
 {
   /**
-   * @brief loopt bis ok button gedrückt wird. Liest Tag Button Values aus, speichert diese und gibt 
-   * die eingestellten Tage via LED Front an User aus
-   * 
+   * @brief Liest Tag Button Values aus, speichert diese und gibt die eingestellten Tage 
+   * via LED Front an User aus.
+   * @param okButtonValue periodische Abfrage von ok button (out)
    */
-  while(1){
-  currentMillis = millis();      // aktuelle Zeit speichern  
+  bool okButtonValue = abfrage_ok_button();
   update_tage_button_selection(); 
-  //Serial.println(digitalRead(2));
-  //delay(500);
   LED_schalten();
-  if (abfrage_ok_button())  // Abbruchkriterium: OK-Button gedrückt
-  {
-    break;
-  }
-}
+  return okButtonValue;
 }
 bool turn_to_nupsi()
 /**
@@ -295,9 +290,63 @@ bool press_pill()
 void loop()
 {
   currentMillis = millis(); // aktuelle Zeit speichern
-  // delay(2000);
   waiting_for_start();
-  // LED_schalten();
+  LED_schalten();
+  //!!sortierer positionieren
+      switch ( status )
+      {
+      case 0: // wait for start
+        if (waiting_for_start())
+        {
+          status = 1;
+        }
+        break;
+      case 1: // blister positionieren
+      if( blisterPosition < 6){
+        if(turn_to_nupsi()){
+          blisterPosition++;
+          status = 2;
+          startMillisServoDruck = currentMillis;
+          startMillisServoSchneid = currentMillis;
+        }
+        else{
+          //if(!!zurückfahren){
+          
+          //if(!!auf neuen blister warten) 
+          blisterPosition = 0;
+          //}}
+        }
+      }
+      break;
+      case 2: // press&cut
+        if (blisterPosition == 1)
+        {
+          if (cut_blister())
+          {
+            status = 1;
+          }
+        }
+        else if (blisterPosition == 6)
+        {
+          if (press_pill())
+          {
+            status = 1;
+          }
+        }
+        else
+        {
+          if (press_pill() && cut_blister)
+          {
+            status = 1;
+          }
+        }
+
+
+        break;
+      case 3: //
+
+        break;
+      }
 
   waiting_for_start();
   if (turn_to_nupsi() == true)
