@@ -1,4 +1,7 @@
 #include <Servo.h>
+#include <Wire.h> // Wire Bibliothek einbinden
+#include <LiquidCrystal_I2C.h> // Vorher hinzugefügte LiquidCrystal_I2C Bibliothek einbinden
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // A-E: LED Pins für Charlieplexing
 #define E 8
@@ -79,13 +82,17 @@ void setup()
   startMillisServoVorschub = millis();
   startMillisServoDruck = millis();
   startMillisServoSchneid = millis();
-
   for (int i = 0; i < 7; i++)
   {
     startMillisButtonsSchutz[i] = millis();
-    pinMode(buttonPins[i],INPUT);
+    pinMode(buttonPins[i], INPUT);
   }
-  //servos attachen und zurück stellen
+
+  // LCD
+  lcd.init();      // Im Setup wird der LCD gestartet
+  lcd.backlight(); // Hintergrundbeleuchtung einschalten (lcd.noBacklight(); schaltet die Beleuchtung aus).
+
+  // servos attachen und zurück stellen
   servoVorschub.attach(SERVO_PIN_VORSCHUB);
   servoSchneid.attach(SERVO_PIN_SCHNEID);
   servoDruck.attach(SERVO_PIN_DRUCK); 
