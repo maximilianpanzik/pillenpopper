@@ -1,36 +1,22 @@
 #include <Servo.h>
-Servo servo_cut;    // erstellt ein Servo-Objekt, um einen Servomotor zu steuern
-Servo servo_press;  // erstellt ein Servo-Objekt, um einen Servomotor zu steuern
-Servo servo_vorschub;
-Servo servo_sortierer;
 
 #define E 8
 #define D 9
 #define C 10
 #define B 11
 #define A 12
-#define OK_BUTTON 13
-
-/* ALT -> prüfen
-//#define ENA 9
-#define IN1 6
-#define IN2 7
-#define BUTTON 5
-#define LIGHT_GATE 2
-#define SERVO_CUT_PIN 8
-#define SERVO_PRESS_PIN 4
-// Variablen definieren
-
-//#define TRIGGER_VALUE 500
-#define PILLS_IN_BLISTER 5
-#define TIME_TO_NUPSI 20000
-#define SPEED 150
-*/
+#define OK_BUTTON 5
+#define SERVO_PIN_VORSCHUB 6
+#define SERVO_PIN_SCHNEID 7
+#define SERVO_PIN_DRUCK 8
+#define LICHTSCHRANKE_VORSCHUB 2
 
 #define LED_PERIODE 1
 #define BUTTON_SCHUTZ_PERIODE 1000
 #define BUTTON_TAG_ABTAST_PERIODE 100
 #define BUTTON_OK_ABTAST_PERIODE 100
+#define SERVO_VORSCHUB_SPEED 60 //max = 70
+#define PILLS_IN_BLISTER 5
 
 int buttonPins[7] = {2,3,3,3,3,3,3}; //noch zu defnieren!!
 
@@ -39,17 +25,30 @@ unsigned long startMillisLed;              // aktuelle LED periode
 unsigned long startMillisButtonsSchutz[7]; // aktuellte Button Schutz Periode
 unsigned long startMillisButtonsTagAbtast; // aktuelle Tage Button abtast Periode
 unsigned long startMillisButtonsOkAbtast;  // aktuelle Ok Button abtast Periode
+unsigned long startMillisservoVorschub;    // aktuelle Servo Vorschub Periode
+
 int c[2][7][2] =                           // schaltplan, um LED # mit charlieplexing blau oder grün zu schalten
     {
         {{C, A}, {C, B}, {B, C}, {B, D}, {B, E}, {E, A}, {E, B}},  // blau
         {{B, A}, {A, B}, {A, C}, {A, D}, {A, E}, {D, A}, {D, B}} // grün
 };      //  1       2       3       4       5        6       7
-int ledIncrement = 0;
-//bool tageButtonValues[] = {1,1,1,1,1,1,1}; // 0: nicht aktiv, 1: aktiv
-bool tageButtonValues[] = {0,1,0,1,1,1,1}; // 0: nicht aktiv, 1: aktiv
-//int fuellStand[] = {0, 0, 0, 0, 0, 0, 0};        // 0: nicht voll, 1: voll
-int fuellStand[] = {1, 1, 1, 0, 0, 0, 0};        // 0: nicht voll, 1: voll
 
+int ledIncrement = 0;
+//bool tageButtonValues[] = {1,1,1,1,1,1,1};      // 0: nicht aktiv, 1: aktiv
+bool tageButtonValues[] = {0,1,0,1,1,1,1};        // 0: nicht aktiv, 1: aktiv
+//int fuellStand[] = {0, 0, 0, 0, 0, 0, 0};       // 0: nicht voll, 1: voll
+int fuellStand[] = {1, 1, 1, 0, 0, 0, 0};         // 0: nicht voll, 1: voll
+
+bool eingefahren = true;
+unsigned long myTime = 0;
+int nubsi = 0;
+bool didIt = false;
+
+//Servo objekte erstellen
+Servo servoSortierer;
+Servo servoVorschub; 
+Servo servoSchneid;
+Servo servoDruck;
 
 void setup()
 {
@@ -64,30 +63,22 @@ void setup()
   startMillisLed = millis();
   startMillisButtonsTagAbtast = millis();
   startMillisButtonsOkAbtast = millis();
+  startMillisservoVorschub = millis();
   for (int i = 0; i < 7; i++)
   {
     startMillisButtonsSchutz[i] = millis();
     pinMode(buttonPins[i],INPUT);
   }
+  //servos attachen und stoppen
+  servoVorschub.attach(SERVO_PIN_VORSCHUB);
+  servoSchneid.attach(SERVO_PIN_SCHNEID);
+  servoDruck.attach(SERVO_PIN_DRUCK); 
+  servoSchneid.write(5);
+  servoDruck.write(5);
+
+  pinMode(OK_BUTTON, INPUT_PULLUP);
+
   lightshow(); //lichtwelle
-
-/* ALT -> prüfen
-  servo_cut.attach(SERVO_CUT_PIN); //Das Setup enthält die Information, dass das Servo an der Steuerleitung mit Pin 10 verbunden wird.
-  servo_press.attach(SERVO_PRESS_PIN); //Das Setup enthält die Information, dass das Servo an der Steuerleitung mit Pin 11 verbunden wird.
-  //pinMode(ENA, OUTPUT);
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  pinMode(BUTTON, INPUT);
-
-
-  // Rotationrichtung bestimmen
-
-  servo_cut.write(0);   // Beim Starten des Programmes fährt der Motor auf die 0-Position.
-  servo_press.write(0); 
-  //digitalWrite(IN1, LOW);
-  //digitalWrite(IN2, HIGH);
-*/
-
 }
 void light(int pins[2])
 {
@@ -220,77 +211,79 @@ void waiting_for_start()
   }
 }
 }
-void loop()
-{
-  currentMillis = millis();      // aktuelle Zeit speichern
-  //delay(2000);
-  waiting_for_start();
-  //LED_schalten();
-
-  /* ALT -> prüfen
-waiting_for_start();
-  if(turn_to_nupsi() == false)
-    return;
-  cut_blister();
-  for(int i=0; i< (PILLS_IN_BLISTER - 2); i++)
-  {
-    if(turn_to_nupsi() == false)
-      return;
-    cut_blister();
-    press_pill();
-  }
-  if(turn_to_nupsi() == false)
-    return;
-  press_pill(); 
-  // Auswerfen der Blisterhalterung
-  */
-}
-
-/* ab hier ALT -> prüfen
 bool turn_to_nupsi()
+/**
+ * @brief Schiebt die Blisterfixierung so lange weiter, bis Lichtschranke von Nupsi unterbrochen ist.
+ * @param nupsiInLichtschranke Ist Lichtschranke von Nupsi unterbrochen?
+ * 
+ */
 {
-  analogWrite(IN1, SPEED);
-  analogWrite(IN2, 0);
-  delay(1000);
-  unsigned long mytime = millis();
-  delay(100);
-  while (true)
+  bool nupsiInLichtschranke;
+  if (!digitalRead(LICHTSCHRANKE_VORSCHUB)) //Fall: Nupsi unterbricht Lichtschranke nicht
   {
-    int potValue = digitalRead(LIGHT_GATE);   //Wert des Potentiometers auslesen
-    if(potValue == HIGH)
+    nupsiInLichtschranke = false;
+    //360 grad Servo PWM steuern
+    if (millis() - startMillisservoVorschub <= (70 - SERVO_VORSCHUB_SPEED))
     {
-      analogWrite(IN1, 0);
-      analogWrite(IN2, 0);
-      return true;
+      servoVorschub.write(0);
     }
-    unsigned long time_since_start = (millis()-mytime);
-    if(time_since_start >= TIME_TO_NUPSI)
+    else
     {
-      analogWrite(IN1, 0);
-      analogWrite(IN2, 0);
-      delay(1000);
-      analogWrite(IN1, 0);
-      analogWrite(IN2, SPEED); 
-      delay(TIME_TO_NUPSI);
-      analogWrite(IN1, 0);
-      analogWrite(IN2, 0); 
-      return false;
+      if (millis() - startMillisservoVorschub <= SERVO_VORSCHUB_SPEED)
+      {
+        servoVorschub.write(90);
+      }
+      else
+      {
+        startMillisservoVorschub = millis();
+      }
     }
   }
+  else //Fall: Nupsi unterbricht Lichtschranke
+  {
+    bool nupsiInLichtschranke = true;
+    servoVorschub.write(90); //Servo anhalten
+  }
+  return nupsiInLichtschranke;
 }
 void cut_blister()
 {
-  servo_cut.write(180);
+  servoSchneid.write(65);
   delay(1000);
-  servo_cut.write(0);
+  servoSchneid.write(5);
   delay(1000);
 }
 void press_pill()
 {
-  servo_press.write(180);
+  servo_press.write(110);
   delay(1000);
-  servo_press.write(0);
+  servo_press.write(5);
   delay(1000);
   
 }
-*/
+void loop()
+{
+  currentMillis = millis(); // aktuelle Zeit speichern
+  // delay(2000);
+  waiting_for_start();
+  // LED_schalten();
+
+  waiting_for_start();
+  if (turn_to_nupsi() == true)
+  {
+    cut_blister();
+  }
+  for (int i = 0; i < (PILLS_IN_BLISTER - 2); i++)
+  {
+    if (turn_to_nupsi() == false)
+    {
+      cut_blister();
+      press_pill();
+    }
+  }
+  if (turn_to_nupsi() == false)
+  {
+    press_pill();
+  }
+  // Auswerfen der Blisterhalterung
+}
