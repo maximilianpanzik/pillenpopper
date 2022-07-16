@@ -1,21 +1,27 @@
 #include <Servo.h>
 
+// A-E: LED Pins für Charlieplexing
 #define E 8
 #define D 9
 #define C 10
 #define B 11
 #define A 12
+
 #define OK_BUTTON 5
+
+//Servo Pins
+#define SERVO_PIN_SORTIERER
 #define SERVO_PIN_VORSCHUB 6
 #define SERVO_PIN_SCHNEID 7
 #define SERVO_PIN_DRUCK 8
+
 #define LICHTSCHRANKE_VORSCHUB 2
 
 #define LED_PERIODE 1
 #define BUTTON_SCHUTZ_PERIODE 1000
 #define BUTTON_TAG_ABTAST_PERIODE 100
 #define BUTTON_OK_ABTAST_PERIODE 100
-#define SERVO_VORSCHUB_SPEED 60 //max = 70
+#define SERVO_VORSCHUB_SPEED 60       //max = 70
 #define PILLS_IN_BLISTER 5
 
 int buttonPins[7] = {2,3,3,3,3,3,3}; //noch zu defnieren!!
@@ -25,9 +31,11 @@ unsigned long startMillisLed;              // aktuelle LED periode
 unsigned long startMillisButtonsSchutz[7]; // aktuellte Button Schutz Periode
 unsigned long startMillisButtonsTagAbtast; // aktuelle Tage Button abtast Periode
 unsigned long startMillisButtonsOkAbtast;  // aktuelle Ok Button abtast Periode
-unsigned long startMillisservoVorschub;    // aktuelle Servo Vorschub Periode
+unsigned long startMillisServoVorschub;    // aktuelle Servo Vorschub Periode
+unsigned long startMillisServoDruck;       // aktuelle Servo Druck Periode
+unsigned long startMillisServoSchneid;      // aktuelle Servo Schneid Periode
 
-int c[2][7][2] =                           // schaltplan, um LED # mit charlieplexing blau oder grün zu schalten
+int charlieplexingLeds[2][7][2] =                           // schaltplan, um LED # mit charlieplexing blau oder grün zu schalten
     {
         {{C, A}, {C, B}, {B, C}, {B, D}, {B, E}, {E, A}, {E, B}},  // blau
         {{B, A}, {A, B}, {A, C}, {A, D}, {A, E}, {D, A}, {D, B}} // grün
@@ -38,6 +46,9 @@ int ledIncrement = 0;
 bool tageButtonValues[] = {0,1,0,1,1,1,1};        // 0: nicht aktiv, 1: aktiv
 //int fuellStand[] = {0, 0, 0, 0, 0, 0, 0};       // 0: nicht voll, 1: voll
 int fuellStand[] = {1, 1, 1, 0, 0, 0, 0};         // 0: nicht voll, 1: voll
+
+int status = 0; // 0: waiting for start, 1: turn to nupsi, 2: cut, 3: cut&press, 4: press
+int statusSortierer = 0; //0: not in position, 1: in position
 
 bool eingefahren = true;
 unsigned long myTime = 0;
@@ -63,13 +74,16 @@ void setup()
   startMillisLed = millis();
   startMillisButtonsTagAbtast = millis();
   startMillisButtonsOkAbtast = millis();
-  startMillisservoVorschub = millis();
+  startMillisServoVorschub = millis();
+  startMillisServoDruck = millis();
+  startMillisServoSchneid = millis();
+
   for (int i = 0; i < 7; i++)
   {
     startMillisButtonsSchutz[i] = millis();
     pinMode(buttonPins[i],INPUT);
   }
-  //servos attachen und stoppen
+  //servos attachen und zurück stellen
   servoVorschub.attach(SERVO_PIN_VORSCHUB);
   servoSchneid.attach(SERVO_PIN_SCHNEID);
   servoDruck.attach(SERVO_PIN_DRUCK); 
@@ -115,9 +129,9 @@ void LED_schalten()
     if (tageButtonValues[ledIncrement])
     { // wenn Tag # button aktiv
 
-      // blau (c[0][]) wenn tag # fuellstand leer,
-      // grün (c[1][]) wenn tag # fuellstand voll
-      light(c[fuellStand[ledIncrement]][ledIncrement]);
+      // blau (charlieplexingLeds[0][]) wenn tag # fuellstand leer,
+      // grün (charlieplexingLeds[1][]) wenn tag # fuellstand voll
+      light(charlieplexingLeds[fuellStand[ledIncrement]][ledIncrement]);
     }
     // incrementieren wenn <6, sonst 0
     //ledIncrement = (ledIncrement < 6) ? ledIncrement++ : 0;
@@ -137,11 +151,11 @@ void lightshow()
 {
   for(int i = 0; i<2; i++){
     for(int j = 0; j<7; j++){
-      light(c[i][j]);
+      light(charlieplexingLeds[i][j]);
       delay(100);
     }
         for(int j = 6; j>-1; j--){
-      light(c[i][j]);
+      light(charlieplexingLeds[i][j]);
       delay(100);
     }
   }
@@ -223,19 +237,19 @@ bool turn_to_nupsi()
   {
     nupsiInLichtschranke = false;
     //360 grad Servo PWM steuern
-    if (millis() - startMillisservoVorschub <= (70 - SERVO_VORSCHUB_SPEED))
+    if (currentMillis - startMillisServoVorschub <= (70 - SERVO_VORSCHUB_SPEED))
     {
       servoVorschub.write(0);
     }
     else
     {
-      if (millis() - startMillisservoVorschub <= SERVO_VORSCHUB_SPEED)
+      if (currentMillis - startMillisServoVorschub <= SERVO_VORSCHUB_SPEED)
       {
         servoVorschub.write(90);
       }
       else
       {
-        startMillisservoVorschub = millis();
+        startMillisServoVorschub = millis();
       }
     }
   }
@@ -246,20 +260,37 @@ bool turn_to_nupsi()
   }
   return nupsiInLichtschranke;
 }
-void cut_blister()
+bool cut_blister()
 {
-  servoSchneid.write(65);
-  delay(1000);
-  servoSchneid.write(5);
-  delay(1000);
+  bool done;
+  if (currentMillis - startMillisServoSchneid >= 2000){
+    done = true;
+  }
+  else if(currentMillis - startMillisServoSchneid >= 1000){
+    servoSchneid.write(5);
+    done = false;
+  }
+  else{
+    servoSchneid.write(65);
+    done = false;
+  }
+  return done;
 }
-void press_pill()
+bool press_pill()
 {
-  servo_press.write(110);
-  delay(1000);
-  servo_press.write(5);
-  delay(1000);
-  
+  bool done;
+  if (currentMillis - startMillisServoDruck >= 2000){
+    done = true;
+  }
+  else if(currentMillis - startMillisServoDruck >= 1000){
+    servoDruck.write(5);
+    done = false;
+  }
+  else{
+    servoDruck.write(110);
+    done = false;
+  }
+  return done;
 }
 void loop()
 {
