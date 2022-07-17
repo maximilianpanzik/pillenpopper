@@ -118,7 +118,8 @@ void setup()
 
   lightshow(); //lichtwelle
 }
-void LCD_schalten(){
+void LCD_schalten()
+{
   switch (status)
   {
   case 0:
@@ -139,6 +140,19 @@ void LCD_schalten(){
     //lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     //lcd.print("mit ok bestätigen");
     break;
+     case 3:
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Box wird ausgeworfen");
+    //lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    //lcd.print("mit ok bestätigen");
+    break;
+     case 4:
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Abbruch! Zum Auswerfen");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("mit ok bestätigen");
+    break;
+
   }
 }
 void sortierer_positionieren()
@@ -148,7 +162,7 @@ void sortierer_positionieren()
    * 
    */
 
-  int winkeltabelle[] ={}; //!! zu befüllen
+  int winkeltabelle[] = {0,30,60,90,120,160,180}; 
   //erste unbefüllte zu befüllende kammer finden
   for (int i = 0; i<7; i++){
     if((tageButtonValues[i] == 1) && (fuellStandBox[i] == 0)){
@@ -258,7 +272,8 @@ bool auf_neuen_blister_warten(){
   //!!
   return 1;
 }
-bool blister_auswerfen(){
+bool blister_auswerfen()
+{
   if (currentMillis - startMillisAuswerfen > AUSWERFZEIT)
   {
     return true;
@@ -284,7 +299,8 @@ bool blister_auswerfen(){
     return false;
   }
 }
-bool abfrage_ok_button(){
+bool abfrage_ok_button()
+{
 /**
  * @brief fragt periodisch den OK Button Wert ab und gibt ihn zurück
  * @param buttonOkValue   Button Value (out)
@@ -298,7 +314,8 @@ bool abfrage_ok_button(){
   }
   return buttonOkValue;
 }
-void abfrage_pilldrop_lichtschranke(){
+void abfrage_pilldrop_lichtschranke()
+{
   /**
    * @brief fragt periodisch den LS Wert ab und updatet fuellstand
    *
@@ -410,7 +427,13 @@ void loop()
   LED_schalten();
   sortierer_positionieren();
   abfrage_pilldrop_lichtschranke();
-  status = abfrage_fuellstand() ? 3 : status; //auswerfen wenn fuellstand erreicht
+  if (abfrage_fuellstand() && !(status == 4))
+  {
+    status = 3;
+    startMillisAuswerfen = currentMillis; // auswerfen wenn fuellstand erreicht
+  }
+
+  
 
   switch (status)
   {
@@ -422,6 +445,9 @@ void loop()
     }
     break;
   case 1: // blister positionieren
+  if(abfrage_ok_button()){
+    status = 4;
+    break;}
     if (blisterPosition < 6)
     {
       if (vorschub_bis_nupsi())
@@ -431,14 +457,18 @@ void loop()
         startMillisServoDruck = currentMillis;
         startMillisServoSchneid = currentMillis;
       }
+      }
       else
       {
         status = 3;
         startMillisAuswerfen = currentMillis;
       }
-    }
+    
     break;
   case 2: // press&cut
+    if(abfrage_ok_button()){
+    status = 4;
+    break;}
     if (blisterPosition == 1)
     {
       if (cut_blister())
@@ -463,10 +493,13 @@ void loop()
 
     break;
   case 3: // auswerfen
+    if(abfrage_ok_button()){
+    status = 4;
+    break;}
     if (blister_auswerfen())
     {
 
-      if (fuellStandBox)
+      if (abfrage_fuellstand())
       {
         status = 0; //wait for start
       }
@@ -476,6 +509,17 @@ void loop()
         status = 1; //neuen blister einziehen
       }
     }
+    break;
+    case 4: //abbruch
+      servoDruck.write(5);
+      servoSchneid.write(5);
+      servoVorschub.write(90);
+      delay(2000);
+      while(!abfrage_ok_button()){
+      LCD_schalten();
+      }
+      status = 3;
+      startMillisAuswerfen = currentMillis;
     break;
   }
 }
