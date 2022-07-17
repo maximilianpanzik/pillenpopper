@@ -19,11 +19,11 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #define SERVO_PIN_DRUCK A2
 
 // lichtschranken pins
-#define LICHTSCHRANKE_PILLDROP A3
+#define LICHTSCHRANKE_PILLDROP A7
 #define LICHTSCHRANKE_VORSCHUB A6
 
 // button pins
-#define OK_BUTTON A7
+#define OK_BUTTON A3
 int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
 
 // Einstellungen
@@ -57,6 +57,9 @@ int ledIncrement = 0; // aktuell schaltende LED
 
 bool tageButtonValues[7]; // 0: nicht aktiv, 1: aktiv
 bool fuellStandBox[7];    // 0: nicht voll, 1: voll
+//  bool tageButtonValues[7] = {1,1,1,1,1,1,1}; // 0: nicht aktiv, 1: aktiv
+//  bool fuellStandBox[7] = {0,0,0,0,0,0,0};    // 0: nicht voll, 1: voll
+
 
 int blisterPosition; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
 
@@ -71,7 +74,7 @@ Servo servoDruck;
 
 void setup()
 {
-  // Serial.begin(9600);
+  Serial.begin(9600);
 
   pinMode(A, INPUT);
   pinMode(B, INPUT);
@@ -99,7 +102,7 @@ void setup()
   }
 
 for (int i = 0; i<7; i++){
-  fuellStandBox[i] = 1;
+  fuellStandBox[i] = 0;
   tageButtonValues[i] = 1;
   }
   status = 0;
@@ -120,9 +123,8 @@ for (int i = 0; i<7; i++){
   servoSchneid.write(5);
   servoDruck.write(5);
 
-  pinMode(OK_BUTTON, INPUT_PULLUP);
-
   lightshow(); // lichtwelle
+  LCD_schalten();
 }
 void LCD_schalten()
 {
@@ -130,19 +132,19 @@ void LCD_schalten()
   {
   case 0:
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Tage wählen und");
+    lcd.print("Tage waehlen und");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("mit ok bestätigen");
+    lcd.print("mit ok starten");
     break;
   case 1:
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Box wird befüllt");
+    lcd.print("Box wird befuellt");
     // lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     // lcd.print("mit ok bestätigen");
     break;
   case 2:
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Box wird befüllt");
+    lcd.print("Box wird befuellt");
     // lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     // lcd.print("mit ok bestätigen");
     break;
@@ -154,7 +156,7 @@ void LCD_schalten()
     break;
   case 4:
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Abbruch! Zum Auswerfen");
+    lcd.print("Abbruch! Auswerfen");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     lcd.print("mit ok bestätigen");
     break;
@@ -207,9 +209,9 @@ void LED_schalten()
    * Füllstatus (int fuellStandBox []) schaltet alle LED_PERIODE ms eine LED
    *
    **/
-  if (currentMillis - startMillisLed >= LED_PERIODE)
-  {
-    startMillisLed = currentMillis;
+  // if (currentMillis - startMillisLed >= LED_PERIODE)
+  // {
+  //   startMillisLed = currentMillis;
     if (tageButtonValues[ledIncrement])
     { // wenn Tag # button aktiv
 
@@ -228,7 +230,7 @@ void LED_schalten()
       ledIncrement = 0;
     }
   }
-}
+//}
 void lightshow()
 /**
  * @brief leuchtet alle LEDs auf
@@ -265,13 +267,16 @@ void update_tage_button_selection()
    */
   if (currentMillis - startMillisButtonsTagAbtast >= BUTTON_TAG_ABTAST_PERIODE)
   {
-    startMillisButtonsTagAbtast = millis(); // abtast Periode resetten
+    startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
+    //Serial.println("Buttonvalues:");
     for (int i = 1; i < 7; i++)
+    
     {
+      //Serial.println(tageButtonValues[i]);
       if (currentMillis - startMillisButtonsSchutz[i] >= BUTTON_SCHUTZ_PERIODE)
-      {
-        startMillisButtonsSchutz[i] = millis(); // Button Schutz Periode resetten
-        if (digitalRead(buttonPins[i]) == HIGH) // Button Selection umkehren wenn Button gedrückt
+      {        
+        startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
+        if (digitalRead(buttonPins[i])) // Button Selection umkehren wenn Button gedrückt
         {
           tageButtonValues[i] = !tageButtonValues[i];
         }
@@ -325,8 +330,9 @@ bool abfrage_ok_button()
   bool buttonOkValue = false;
   if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
   {
-    startMillisButtonsOkAbtast = millis(); // abtast Periode resetten
+    startMillisButtonsOkAbtast = currentMillis; // abtast Periode resetten
     buttonOkValue = (digitalRead(OK_BUTTON) == HIGH);
+    Serial.println(buttonOkValue);
   }
   return buttonOkValue;
 }
@@ -339,7 +345,9 @@ void abfrage_pilldrop_lichtschranke()
   if (currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
   {
     startMillisLSPilldropAbtast = millis(); // abtast Periode resetten
+    if(digitalRead(LICHTSCHRANKE_PILLDROP)){
     fuellStandBox[blisterPosition] = 1;
+  }
   }
 }
 bool warte_auf_start()
@@ -351,7 +359,6 @@ bool warte_auf_start()
    */
   bool okButtonValue = abfrage_ok_button();
   update_tage_button_selection();
-  LED_schalten();
   return okButtonValue;
 }
 bool abfrage_fuellstand()
@@ -445,22 +452,25 @@ bool press_pill()
 void loop()
 {
   currentMillis = millis(); // aktuelle Zeit speichern
-  LCD_schalten();
+  //LCD_schalten();
   LED_schalten();
-  sortierer_positionieren();
+  //sortierer_positionieren();
+
   abfrage_pilldrop_lichtschranke();
+
   if (abfrage_fuellstand() && !(status == 4))
   {
     status = 3;
+    LCD_schalten();
     startMillisAuswerfen = currentMillis; // auswerfen wenn fuellstand erreicht
   }
-
+  
   switch (status)
   {
   case 0: // wait for start
     if (warte_auf_start())
     {
-      status = 1;
+      status = 1;      
       LCD_schalten();
     }
     break;
@@ -468,6 +478,7 @@ void loop()
     if (abfrage_ok_button())
     {
       status = 4;
+      LCD_schalten();
       break;
     }
     if (blisterPosition < 6)
@@ -476,6 +487,7 @@ void loop()
       {
         blisterPosition++;
         status = 2;
+        LCD_schalten();
         startMillisServoDruck = currentMillis;
         startMillisServoSchneid = currentMillis;
       }
@@ -483,6 +495,7 @@ void loop()
     else
     {
       status = 3;
+      LCD_schalten();
       startMillisAuswerfen = currentMillis;
     }
 
@@ -491,6 +504,7 @@ void loop()
     if (abfrage_ok_button())
     {
       status = 4;
+      LCD_schalten();
       break;
     }
     if (blisterPosition == 1)
@@ -498,6 +512,7 @@ void loop()
       if (cut_blister())
       {
         status = 1;
+        LCD_schalten();
       }
     }
     else if (blisterPosition == 6)
@@ -505,6 +520,7 @@ void loop()
       if (press_pill())
       {
         status = 1;
+        LCD_schalten();
       }
     }
     else
@@ -512,6 +528,7 @@ void loop()
       if (press_pill() && cut_blister())
       {
         status = 1;
+        LCD_schalten();
       }
     }
 
@@ -520,6 +537,7 @@ void loop()
     if (abfrage_ok_button())
     {
       status = 4;
+      LCD_schalten();
       break;
     }
     if (blister_auswerfen())
@@ -533,6 +551,7 @@ void loop()
       {
         blisterPosition = 0;
         status = 1; // neuen blister einziehen
+        LCD_schalten();
       }
     }
     break;
@@ -546,6 +565,7 @@ void loop()
       LCD_schalten();
     }
     status = 3;
+    LCD_schalten();
     startMillisAuswerfen = currentMillis;
     break;
   }
