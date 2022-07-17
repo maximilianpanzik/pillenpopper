@@ -28,6 +28,7 @@ int buttonPins[7] = {0,1,2,3,4,5,6};
 #define BUTTON_SCHUTZ_PERIODE 1000
 #define BUTTON_TAG_ABTAST_PERIODE 100
 #define BUTTON_OK_ABTAST_PERIODE 100
+#define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
 #define SERVO_VORSCHUB_SPEED 60       //max = 70
 #define PILLS_IN_BLISTER 5
 
@@ -38,6 +39,7 @@ unsigned long startMillisLed;              // aktuelle LED periode
 unsigned long startMillisButtonsSchutz[7]; // aktuellte Button Schutz Periode
 unsigned long startMillisButtonsTagAbtast; // aktuelle Tage Button abtast Periode
 unsigned long startMillisButtonsOkAbtast;  // aktuelle Ok Button abtast Periode
+unsigned long startMillisLSPilldropAbtast;  // aktuelle Lichtschranke Pilldrop abtast Periode
 unsigned long startMillisServoVorschub;    // aktuelle Servo Vorschub Periode
 unsigned long startMillisServoDruck;       // aktuelle Servo Druck Periode
 unsigned long startMillisServoSchneid;      // aktuelle Servo Schneid Periode
@@ -108,11 +110,37 @@ void setup()
   lightshow(); //lichtwelle
 }
 void LCD_schalten(){
-  //!!
+  switch (status)
+  {
+  case 0:
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Tage wählen und");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("mit ok bestätigen");
+    break;
+      case 0:
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Tage wählen und");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("mit ok bestätigen");
+    break;
+      case 0:
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Tage wählen und");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("mit ok bestätigen");
+    break;
+  }
 }
-bool sortierer_positionieren(){
-  //!!
-  return 1;
+void sortierer_positionieren(){
+  int winkeltabelle[] ={};
+  //erste unbefüllte zu befüllende kammer finden
+  for (int i = 0; i<7; i++){
+    if((tageButtonValues[i] == 1) && (fuellStandBox[i] == 0)){
+      servoSortierer.write(winkeltabelle[i]);
+      break;
+    }
+  }
 }
 void light(int pins[2])
 {
@@ -234,6 +262,17 @@ bool abfrage_ok_button(){
   return buttonOkValue;
 
 }
+void abfrage_pilldrop_lichtschranke(){
+/**
+ * @brief fragt periodisch den LS Wert ab und updatet fuellstand
+ * 
+ */
+  if (currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
+  {
+    startMillisLSPilldropAbtast = millis(); // abtast Periode resetten
+    fuellStandBox[blisterPosition] = 1;
+  }
+}
 bool waiting_for_start()
 {
   /**
@@ -317,9 +356,9 @@ void loop()
 {
   currentMillis = millis(); // aktuelle Zeit speichern
   LCD_schalten();
-  waiting_for_start();
   LED_schalten();
   sortierer_positionieren();
+  abfrage_pilldrop_lichtschranke();
 
   switch (status)
   {
@@ -327,6 +366,7 @@ void loop()
     if (waiting_for_start())
     {
       status = 1;
+      LCD_schalten();
     }
     break;
   case 1: // blister positionieren
@@ -367,34 +407,12 @@ void loop()
     }
     else
     {
-      if (press_pill() && cut_blister)
+      if (press_pill() && cut_blister())
       {
         status = 1;
       }
     }
 
     break;
-  case 3: //
-
-    break;
   }
-
-  waiting_for_start();
-  if (turn_to_nupsi() == true)
-  {
-    cut_blister();
-  }
-  for (int i = 0; i < (PILLS_IN_BLISTER - 2); i++)
-  {
-    if (turn_to_nupsi() == false)
-    {
-      cut_blister();
-      press_pill();
-    }
-  }
-  if (turn_to_nupsi() == false)
-  {
-    press_pill();
-  }
-  // Auswerfen der Blisterhalterung
 }
