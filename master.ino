@@ -1,6 +1,8 @@
 #include <Servo.h>
 #include <Wire.h> // Wire Bibliothek einbinden
 #include <LiquidCrystal_I2C.h> // Vorher hinzugefügte LiquidCrystal_I2C Bibliothek einbinden
+#include <stdio.h>
+#include <string.h>
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // A-E: LED Pins für Charlieplexing
@@ -31,18 +33,18 @@ int buttonPins[7] = {0,1,2,3,4,5,6};
 #define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
 #define SERVO_VORSCHUB_SPEED 60       //max = 70
 #define PILLS_IN_BLISTER 5
-
-
+#define AUSWERFZEIT 5000 //in ms
 
 unsigned long currentMillis;               // vergangene Zeit in ms seit Programmstart
 unsigned long startMillisLed;              // aktuelle LED periode
 unsigned long startMillisButtonsSchutz[7]; // aktuellte Button Schutz Periode
 unsigned long startMillisButtonsTagAbtast; // aktuelle Tage Button abtast Periode
 unsigned long startMillisButtonsOkAbtast;  // aktuelle Ok Button abtast Periode
-unsigned long startMillisLSPilldropAbtast;  // aktuelle Lichtschranke Pilldrop abtast Periode
+unsigned long startMillisLSPilldropAbtast; // aktuelle Lichtschranke Pilldrop abtast Periode
 unsigned long startMillisServoVorschub;    // aktuelle Servo Vorschub Periode
 unsigned long startMillisServoDruck;       // aktuelle Servo Druck Periode
-unsigned long startMillisServoSchneid;      // aktuelle Servo Schneid Periode
+unsigned long startMillisServoSchneid;     // aktuelle Servo Schneid Periode
+unsigned long startMillisAuswerfen;        // aktuelle auswerf Periode
 
 int charlieplexingLeds[2][7][2] =                           // schaltplan, um LED # mit charlieplexing blau oder grün zu schalten
     {
@@ -53,13 +55,13 @@ int charlieplexingLeds[2][7][2] =                           // schaltplan, um LE
 int ledIncrement = 0;
 //bool tageButtonValues[] = {1,1,1,1,1,1,1};      // 0: nicht aktiv, 1: aktiv
 bool tageButtonValues[] = {0,1,0,1,1,1,1};        // 0: nicht aktiv, 1: aktiv
-//int fuellStandBox[] = {0, 0, 0, 0, 0, 0, 0};       // 0: nicht voll, 1: voll
-int fuellStandBox[] = {1, 1, 1, 0, 0, 0, 0};         // 0: nicht voll, 1: voll
+//bool fuellStandBox[] = {0, 0, 0, 0, 0, 0, 0};       // 0: nicht voll, 1: voll
+bool fuellStandBox[] = {1, 1, 1, 0, 0, 0, 0};         // 0: nicht voll, 1: voll
 
 int blisterPosition = 0; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
 
-int status = 0; // 0: waiting for start, 1: turn to nupsi, 2: cut&press
-int statusSortierer = 0; //0: not in position, 1: in position
+int status = 0;          // 0: waiting for start, 1: turn to nupsi, 2: cut&press
+int statusSortierer = 0; // 0: not in position, 1: in position
 
 bool eingefahren = true;
 unsigned long myTime = 0;
@@ -118,17 +120,17 @@ void LCD_schalten(){
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     lcd.print("mit ok bestätigen");
     break;
-      case 0:
+      case 1:
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Tage wählen und");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("mit ok bestätigen");
+    lcd.print("Box wird befüllt");
+    //lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    //lcd.print("mit ok bestätigen");
     break;
-      case 0:
+      case 2:
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Tage wählen und");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("mit ok bestätigen");
+    lcd.print("Box wird befüllt");
+    //lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    //lcd.print("mit ok bestätigen");
     break;
   }
 }
@@ -250,8 +252,30 @@ bool auf_neuen_blister_warten(){
   return 1;
 }
 bool blister_auswerfen(){
-  //!!
-  return 1;
+  if (currentMillis - startMillisAuswerfen > AUSWERFZEIT)
+  {
+    return true;
+  }
+  else
+  {
+    // 360 grad Servo PWM steuern
+    if (currentMillis - startMillisServoVorschub <= (70 - SERVO_VORSCHUB_SPEED))
+    {
+      servoVorschub.write(180);
+    }
+    else
+    {
+      if (currentMillis - startMillisServoVorschub <= SERVO_VORSCHUB_SPEED)
+      {
+        servoVorschub.write(90);
+      }
+      else
+      {
+        startMillisServoVorschub = millis();
+      }
+    }
+    return false;
+  }
 }
 bool abfrage_ok_button(){
 /**
@@ -289,6 +313,21 @@ bool warte_auf_start()
   update_tage_button_selection(); 
   LED_schalten();
   return okButtonValue;
+}
+bool abfrage_fuellstand()
+{
+  /**
+   * @brief return true wenn gewünschter füllstand erreicht ist 
+   * 
+   */
+  if(memcmp(fuellStandBox, tageButtonValues, sizeof(fuellStandBox)) == 0 )
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 bool vorschub_bis_nupsi()
 /**
@@ -364,6 +403,7 @@ void loop()
   LED_schalten();
   sortierer_positionieren();
   abfrage_pilldrop_lichtschranke();
+  status = fuellStandBox() ? 3 : status; //auswerfen wenn fuellstand erreicht
 
   switch (status)
   {
@@ -386,12 +426,8 @@ void loop()
       }
       else
       {
-        if (blister_auswerfen())
-        {
-
-          if (auf_neuen_blister_warten())
-            blisterPosition = 0;
-        }
+        status = 3;
+        startMillisAuswerfen = currentMillis;
       }
     }
     break;
@@ -419,5 +455,19 @@ void loop()
     }
 
     break;
+  case 3: // auswerfen
+    if (blister_auswerfen())
+    {
+
+      if (fuellStandBox)
+      {
+        status = 0; //wait for start
+      }
+      else
+      {
+        blisterPosition = 0;
+        status = 1; //neuen blister einziehen
+      }
+    }
   }
 }
