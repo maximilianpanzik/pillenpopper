@@ -403,7 +403,7 @@ void loop()
   LED_schalten();
   sortierer_positionieren();
   abfrage_pilldrop_lichtschranke();
-  status = fuellStandBox() ? 3 : status; //auswerfen wenn fuellstand erreicht
+  status = abfrage_fuellstand() ? 3 : status; //auswerfen wenn fuellstand erreicht
 
   switch (status)
   {
