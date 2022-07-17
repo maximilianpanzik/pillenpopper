@@ -132,8 +132,14 @@ void LCD_schalten(){
     break;
   }
 }
-void sortierer_positionieren(){
-  int winkeltabelle[] ={};
+void sortierer_positionieren()
+{
+  /**
+   * @brief positioniert sortierer abhängig von ausgewählten tagen und fuellständen
+   * 
+   */
+
+  int winkeltabelle[] ={}; //!! zu befüllen
   //erste unbefüllte zu befüllende kammer finden
   for (int i = 0; i<7; i++){
     if((tageButtonValues[i] == 1) && (fuellStandBox[i] == 0)){
@@ -260,20 +266,19 @@ bool abfrage_ok_button(){
     buttonOkValue = (digitalRead(OK_BUTTON) == HIGH);
   }
   return buttonOkValue;
-
 }
 void abfrage_pilldrop_lichtschranke(){
-/**
- * @brief fragt periodisch den LS Wert ab und updatet fuellstand
- * 
- */
+  /**
+   * @brief fragt periodisch den LS Wert ab und updatet fuellstand
+   *
+   */
   if (currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
   {
     startMillisLSPilldropAbtast = millis(); // abtast Periode resetten
     fuellStandBox[blisterPosition] = 1;
   }
 }
-bool waiting_for_start()
+bool warte_auf_start()
 {
   /**
    * @brief Liest Tag Button Values aus, speichert diese und gibt die eingestellten Tage 
@@ -285,7 +290,7 @@ bool waiting_for_start()
   LED_schalten();
   return okButtonValue;
 }
-bool turn_to_nupsi()
+bool vorschub_bis_nupsi()
 /**
  * @brief Schiebt die Blisterfixierung so lange weiter, bis Lichtschranke von Nupsi unterbrochen ist.
  * @param nupsiInLichtschranke Ist Lichtschranke von Nupsi unterbrochen?
@@ -363,7 +368,7 @@ void loop()
   switch (status)
   {
   case 0: // wait for start
-    if (waiting_for_start())
+    if (warte_auf_start())
     {
       status = 1;
       LCD_schalten();
@@ -372,7 +377,7 @@ void loop()
   case 1: // blister positionieren
     if (blisterPosition < 6)
     {
-      if (turn_to_nupsi())
+      if (vorschub_bis_nupsi())
       {
         blisterPosition++;
         status = 2;
