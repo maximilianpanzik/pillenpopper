@@ -4,21 +4,25 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // A-E: LED Pins für Charlieplexing
-#define E 8
-#define D 9
-#define C 10
-#define B 11
-#define A 12
+#define	E	7
+#define	D	8
+#define	C	9
+#define	B	10
+#define	A	11
 
-#define OK_BUTTON 5
+//servo pins
+#define	SERVO_PIN_SORTIERER	12
+#define	SERVO_PIN_VORSCHUB	A0
+#define	SERVO_PIN_SCHNEID	A1
+#define	SERVO_PIN_DRUCK	A2
 
-//Servo Pins
-#define SERVO_PIN_SORTIERER
-#define SERVO_PIN_VORSCHUB 6
-#define SERVO_PIN_SCHNEID 7
-#define SERVO_PIN_DRUCK 8
+//lichtschranken pins
+#define	LICHTSCHRANKE_PILLDROP	A3
+#define	LICHTSCHRANKE_VORSCHUB	A6
 
-#define LICHTSCHRANKE_VORSCHUB 2
+//button pins
+#define	OK_BUTTON	A7
+int buttonPins[7] = {0,1,2,3,4,5,6};
 
 #define LED_PERIODE 1
 #define BUTTON_SCHUTZ_PERIODE 1000
@@ -27,7 +31,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #define SERVO_VORSCHUB_SPEED 60       //max = 70
 #define PILLS_IN_BLISTER 5
 
-int buttonPins[7] = {2,3,3,3,3,3,3}; //noch zu defnieren!!
+
 
 unsigned long currentMillis;               // vergangene Zeit in ms seit Programmstart
 unsigned long startMillisLed;              // aktuelle LED periode
