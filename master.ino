@@ -52,21 +52,17 @@ int charlieplexingLeds[2][7][2] =                           // schaltplan, um LE
         {{B, A}, {A, B}, {A, C}, {A, D}, {A, E}, {D, A}, {D, B}} // grün
 };      //  1       2       3       4       5        6       7
 
-int ledIncrement = 0;
-//bool tageButtonValues[] = {1,1,1,1,1,1,1};      // 0: nicht aktiv, 1: aktiv
-bool tageButtonValues[] = {0,1,0,1,1,1,1};        // 0: nicht aktiv, 1: aktiv
-//bool fuellStandBox[] = {0, 0, 0, 0, 0, 0, 0};       // 0: nicht voll, 1: voll
-bool fuellStandBox[] = {1, 1, 1, 0, 0, 0, 0};         // 0: nicht voll, 1: voll
 
-int blisterPosition = 0; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
+//operationsvariablen
+int ledIncrement = 0; //aktuell schaltende LED
 
-int status = 0;          // 0: waiting for start, 1: turn to nupsi, 2: cut&press
-int statusSortierer = 0; // 0: not in position, 1: in position
+bool tageButtonValues[7]; // 0: nicht aktiv, 1: aktiv
+bool fuellStandBox[7];    // 0: nicht voll, 1: voll
 
-bool eingefahren = true;
-unsigned long myTime = 0;
-int nubsi = 0;
-bool didIt = false;
+int blisterPosition; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
+
+int status;          // 0: waiting for start, 1: turn to nupsi, 2: cut&press
+//int statusSortierer = 0; // 0: not in position, 1: in position
 
 //Servo objekte erstellen
 Servo servoSortierer;
@@ -76,7 +72,7 @@ Servo servoDruck;
 
 void setup()
 {
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   pinMode(A, INPUT);
   pinMode(B, INPUT);
@@ -102,6 +98,11 @@ void setup()
   {
     startMillisButtonsSchutz[i] = millis();
   }
+
+  fuellStandBox[] = {0, 0, 0, 0, 0, 0, 0};
+  tageButtonValues = {1, 1, 1, 1, 1, 1, 1};
+  status = 0;
+  blisterPosition  = 0;
 
   // LCD
   lcd.init();      // Im Setup wird der LCD gestartet
@@ -501,7 +502,7 @@ void loop()
 
       if (abfrage_fuellstand())
       {
-        status = 0; //wait for start
+        setup(); //reset
       }
       else
       {
