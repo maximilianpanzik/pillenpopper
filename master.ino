@@ -26,18 +26,18 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #define	OK_BUTTON	A7
 int buttonPins[7] = {0,1,2,3,4,5,6};
 
+//Einstellungen
 #define LED_PERIODE 1
 #define BUTTON_SCHUTZ_PERIODE 1000
 #define BUTTON_TAG_ABTAST_PERIODE 100
 #define BUTTON_OK_ABTAST_PERIODE 100
 #define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
 #define SERVO_VORSCHUB_SPEED 60       //max = 70
-#define PILLS_IN_BLISTER 5
 #define AUSWERFZEIT 5000 //in ms
 
 unsigned long currentMillis;               // vergangene Zeit in ms seit Programmstart
 unsigned long startMillisLed;              // aktuelle LED periode
-unsigned long startMillisButtonsSchutz[7]; // aktuellte Button Schutz Periode
+unsigned long startMillisButtonsSchutz[7]; // aktuellte Button Schutz Periode (entprellen)
 unsigned long startMillisButtonsTagAbtast; // aktuelle Tage Button abtast Periode
 unsigned long startMillisButtonsOkAbtast;  // aktuelle Ok Button abtast Periode
 unsigned long startMillisLSPilldropAbtast; // aktuelle Lichtschranke Pilldrop abtast Periode
@@ -77,12 +77,20 @@ Servo servoDruck;
 void setup()
 {
   Serial.begin(9600);
+
   pinMode(A, INPUT);
   pinMode(B, INPUT);
   pinMode(C, INPUT);
   pinMode(D, INPUT);
   pinMode(E, INPUT);
-  
+  pinMode(LICHTSCHRANKE_PILLDROP, INPUT);
+  pinMode(LICHTSCHRANKE_VORSCHUB, INPUT);
+  pinMode(OK_BUTTON, INPUT);
+   for (int i = 0; i < 7; i++)
+  {
+    pinMode(buttonPins[i], INPUT);
+  }
+
   //timer perioden starten
   startMillisLed = millis();
   startMillisButtonsTagAbtast = millis();
@@ -93,7 +101,6 @@ void setup()
   for (int i = 0; i < 7; i++)
   {
     startMillisButtonsSchutz[i] = millis();
-    pinMode(buttonPins[i], INPUT);
   }
 
   // LCD
@@ -469,5 +476,6 @@ void loop()
         status = 1; //neuen blister einziehen
       }
     }
+    break;
   }
 }
