@@ -471,12 +471,70 @@ bool press_pill()
   }
   return done;
 }
-void loop()
-{
+void testPillensortierer(){
+  tageButtonValues[2] = 0;
+  sortierer_positionieren();
+  sortierer_positionieren();
+  delay(1000);
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("sortierer sollte");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("auf 1 stehen    ");
+  delay(1000);
+  fuellStandBox[0] = 1;
+
+  sortierer_positionieren();
+    delay(1000);
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("sortierer sollte");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("auf 2 stehen    ");
+      delay(1000);
+    fuellStandBox[1] = 1;
+    
+      sortierer_positionieren();
+  delay(1000);
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("sortierer sollte");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("auf 4 stehen    ");
+  delay(5000);
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Test startet von");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("vorne           ");
+    delay(2000);
+
+  
+}
+void testAusdrucken(){
+        status = 2; // press&cut
+        LCD_schalten();
+        startMillisServoDruck = currentMillis; 
+        startMillisServoSchneid = currentMillis;
+        while(1){
+      if (press_pill() && cut_blister())
+      {
+        status = 1; // blister positionieren
+        LCD_schalten();
+        break;
+      }
+      }
+      delay(2000);
+          lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("ausdruck test   ");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("beendet         ");
+}
+void testVorschub(){
+
+
+}
+void ablauf(){
   currentMillis = millis(); // aktuelle Zeit speichern
   //LCD_schalten();
   LED_schalten();
-  //sortierer_positionieren();
+  sortierer_positionieren();
   //Serial.print("Status:");
   //Serial.println(status);
   abfrage_pilldrop_lichtschranke();
@@ -605,4 +663,9 @@ void loop()
   }
   Serial.print("Zeit für Durchlauf");
   Serial.println(millis()-currentMillis);
+}
+void loop()
+{
+  testPillensortierer();
+  testAusdrucken();
 }
