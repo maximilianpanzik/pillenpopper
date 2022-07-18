@@ -78,8 +78,8 @@ Servo servoSchneid;
 Servo servoDruck;
 
 //capacitive Button Objekte erstellen
-CapacitiveSensor tageButtons[7];
-CapacitiveSensor okButton;
+CapacitiveSensor tageButtons[7] = {CapacitiveSensor(13, 0),CapacitiveSensor(13, 1),CapacitiveSensor(13, 2),CapacitiveSensor(13, 3),CapacitiveSensor(13, 4),CapacitiveSensor(13, 5),CapacitiveSensor(13, 6)};
+CapacitiveSensor okButton = CapacitiveSensor(13, OK_BUTTON);
 
 void setup()
 {
@@ -132,11 +132,6 @@ for (int i = 0; i<7; i++){
   servoSchneid.write(5);
   servoDruck.write(5);
 
-  for (int i = 0; i < 7; i++)
-  {
-    tageButtons[i] = CapacitiveSensor(13, buttonPins[i]);
-  }
-  okButton = CapacitiveSensor(13, OK_BUTTON);
   lightshow(); // lichtwelle
   LCD_schalten();
 }
