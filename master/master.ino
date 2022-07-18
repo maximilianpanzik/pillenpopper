@@ -92,11 +92,11 @@ void setup()
   pinMode(E, INPUT);
   pinMode(LICHTSCHRANKE_PILLDROP, INPUT);
   pinMode(LICHTSCHRANKE_VORSCHUB, INPUT);
-  pinMode(OK_BUTTON, INPUT);
-  for (int i = 0; i < 7; i++)
-  {
-    pinMode(buttonPins[i], INPUT);
-  }
+  //pinMode(OK_BUTTON, INPUT);
+  // for (int i = 0; i < 7; i++)
+  // {
+  //   pinMode(buttonPins[i], INPUT);
+  // }
 
   // timer perioden starten
   startMillisLed = millis();
@@ -129,8 +129,11 @@ for (int i = 0; i<7; i++){
   servoVorschub.attach(SERVO_PIN_VORSCHUB);
   servoSchneid.attach(SERVO_PIN_SCHNEID);
   servoDruck.attach(SERVO_PIN_DRUCK);
+  servoSortierer.attach(SERVO_PIN_SORTIERER);
   servoSchneid.write(5);
   servoDruck.write(5);
+  servoVorschub.write(90);
+  servoSortierer.write(0);
 
   lightshow(); // lichtwelle
   LCD_schalten();
@@ -277,7 +280,7 @@ void update_tage_button_selection()
    */
   if (currentMillis - startMillisButtonsTagAbtast >= BUTTON_TAG_ABTAST_PERIODE)
   {
-    startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
+    
     //Serial.println("Buttonvalues:");
     for (int i = 1; i < 7; i++)
     
@@ -285,11 +288,14 @@ void update_tage_button_selection()
       //Serial.println(tageButtonValues[i]);
       //if (currentMillis - startMillisButtonsSchutz[i] >= BUTTON_SCHUTZ_PERIODE)
       //{        
-        startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
+        
+        //startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
         if (tageButtons[i].capacitiveSensor(30) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
         {
           tageButtonValues[i] = !tageButtonValues[i];
         }
+        Serial.println(currentMillis-millis());
+        startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
       //}
     }
   }
@@ -472,6 +478,8 @@ bool press_pill()
   return done;
 }
 void testPillensortierer(){
+  tageButtonValues[0] = 0;
+  tageButtonValues[1] = 0;
   tageButtonValues[2] = 0;
   sortierer_positionieren();
   sortierer_positionieren();
@@ -491,7 +499,7 @@ void testPillensortierer(){
     lcd.print("auf 2 stehen    ");
       delay(1000);
     fuellStandBox[1] = 1;
-    
+    fuellStandBox[2] = 1;
       sortierer_positionieren();
   delay(1000);
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
@@ -508,76 +516,99 @@ void testPillensortierer(){
   
 }
 void testAusdrucken(){
-        status = 2; // press&cut
-        LCD_schalten();
-        startMillisServoDruck = currentMillis; 
-        startMillisServoSchneid = currentMillis;
-        while(1){
-      if (press_pill() && cut_blister())
-      {
-        status = 1; // blister positionieren
-        LCD_schalten();
-        break;
-      }
-      }
-      delay(2000);
-          lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("ausdruck test   ");
+  status = 2; // press&cut
+  LCD_schalten();
+  startMillisServoDruck = currentMillis;
+  startMillisServoSchneid = currentMillis;
+  while (1)
+  {
+    Serial.println("presse");
+    bool donep = press_pill();
+    bool donec = cut_blister();
+    if (donep && donec)
+    {
+      status = 1; // blister positionieren
+      LCD_schalten();
+      break;
+    }
+  }
+  delay(2000);
+  lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+  lcd.print("ausdruck test   ");
+  lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+  lcd.print("beendet         ");
+}
+void testVorschub()
+{
+}
+void testOkButton()
+{
+  if (okButton.capacitiveSensor(30) > BUTTON_SCHWELLE)
+  {
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Gedueckt        ");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("beendet         ");
+    lcd.print("                ");
+  }
+  else
+  {
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Nicht gedueckt  ");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("                ");
+  }
+  delay(500);
+  Serial.println(okButton.capacitiveSensor(30));
 }
-void testVorschub(){
-
-
-}
-void ablauf(){
+void ablauf()
+{
   currentMillis = millis(); // aktuelle Zeit speichern
-  //LCD_schalten();
+  // LCD_schalten();
   LED_schalten();
-  sortierer_positionieren();
-  //Serial.print("Status:");
-  //Serial.println(status);
+  //sortierer_positionieren();
+  // Serial.print("Status:");
+  // Serial.println(status);
   abfrage_pilldrop_lichtschranke();
 
   if (abfrage_fuellstand() && !(status == 4))
   {
-    status = 3; //auswerfen
+    status = 3; // auswerfen
     LCD_schalten();
     startMillisAuswerfen = currentMillis; // auswerfen wenn fuellstand erreicht
   }
-  
+
   switch (status)
   {
-  case 0: // wait for start
-    if (warte_auf_start()) //true wenn ok button gedrückt
+  case 0:                  // wait for start
+    if (warte_auf_start()) // true wenn ok button gedrückt
     {
-      status = 1; //blister positionieren     
+      status = 1; // blister positionieren
       LCD_schalten();
     }
     break;
-  case 1: // blister positionieren
-  /*
-    if (abfrage_ok_button()) //wenn ok gedrückt -> abbruch
+  case 1:                    // blister positionieren
+
+    if (abfrage_ok_button()) // wenn ok gedrückt -> abbruch
     {
-      status = 4; //abbruch
+      status = 4; // abbruch
       LCD_schalten();
       break;
     }
-    */
+
     if (blisterPosition < 6) // blisterPosition: Pille über Schneidestempel (0-6) 0: Blister noch nicht im System; 6: Pille 5 unter Druck Stempel
     {
-      if (vorschub_bis_nupsi()) //true wenn nupsi in lichtschranke
+      if (vorschub_bis_nupsi()) // true wenn nupsi in lichtschranke
       {
         blisterPosition++;
         status = 2; // press&cut
         LCD_schalten();
-        startMillisServoDruck = currentMillis; 
+        startMillisServoDruck = currentMillis;
         startMillisServoSchneid = currentMillis;
       }
     }
     else
     {
-      status = 3; //auswerfen
+      status = 3; // auswerfen
       LCD_schalten();
       startMillisAuswerfen = currentMillis;
     }
@@ -586,13 +617,13 @@ void ablauf(){
   case 2: // press&cut
     if (abfrage_ok_button())
     {
-      status = 4; //abbruch
+      status = 4; // abbruch
       LCD_schalten();
       break;
     }
     if (blisterPosition == 1)
     {
-      if (cut_blister()) 
+      if (cut_blister())
       {
         status = 1; // blister positionieren
         LCD_schalten();
@@ -661,11 +692,16 @@ void ablauf(){
     startMillisAuswerfen = currentMillis;
     break;
   }
-  Serial.print("Zeit für Durchlauf");
-  Serial.println(millis()-currentMillis);
+  //Serial.print("Zeit für Durchlauf");
+  //Serial.println(millis() - currentMillis);
 }
 void loop()
 {
-  testPillensortierer();
-  testAusdrucken();
+  ablauf();
+  //currentMillis = millis();
+  // light(charlieplexingLeds[1][0]);
+  // setup();
+  // testOkButton();
+  // testPillensortierer();
+  //testAusdrucken();
 }
