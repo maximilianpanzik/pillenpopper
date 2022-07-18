@@ -1,3 +1,4 @@
+#include <CapacitiveSensor.h>
 #include <Servo.h>
 #include <Wire.h>              // Wire Bibliothek einbinden
 #include <LiquidCrystal_I2C.h> // Vorher hinzugefügte LiquidCrystal_I2C Bibliothek einbinden
@@ -25,6 +26,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // button pins
 #define OK_BUTTON A3
 int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
+#define CAPA_CLOCK 13
 
 // Einstellungen
 #define LED_PERIODE 1
@@ -34,6 +36,7 @@ int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
 #define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
 #define SERVO_VORSCHUB_SPEED 60 // max = 70
 #define AUSWERFZEIT 5000        // in ms
+#define BUTTON_SCHWELLE 200     //
 
 unsigned long currentMillis;               // vergangene Zeit in ms seit Programmstart
 unsigned long startMillisLed;              // aktuelle LED periode
@@ -71,6 +74,10 @@ Servo servoSortierer;
 Servo servoVorschub;
 Servo servoSchneid;
 Servo servoDruck;
+
+//capacitive Button Objekte erstellen
+CapacitiveSensor tageButtons[7];
+CapacitiveSensor okButton;
 
 void setup()
 {
@@ -123,6 +130,11 @@ for (int i = 0; i<7; i++){
   servoSchneid.write(5);
   servoDruck.write(5);
 
+  for (int i = 0; i < 7; i++)
+  {
+    tageButtons[i] = CapacitiveSensor(13, buttonPins[i]);
+  }
+  okButton = CapacitiveSensor(13, OK_BUTTON);
   lightshow(); // lichtwelle
   LCD_schalten();
 }
@@ -130,31 +142,31 @@ void LCD_schalten()
 {
   switch (status)
   {
-  case 0: //waiting for start
+  case 0:                // waiting for start
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
     lcd.print("Tage waehlen und");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     lcd.print("mit ok starten  ");
     break;
-  case 1: //turn to nupsi
+  case 1:                // turn to nupsi
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
     lcd.print("Blister wird    ");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     lcd.print("eingezogen      ");
     break;
-  case 2: //cut&press
+  case 2:                // cut&press
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
     lcd.print("Box wird        ");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     lcd.print("befuellt        ");
     break;
-  case 3: //auswerfen
+  case 3:                // auswerfen
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
     lcd.print("Blister wird    ");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
     lcd.print("ausgeworfen     ");
     break;
-  case 4: //abbruch
+  case 4:                // abbruch
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
     lcd.print("Abbruch! Aktoren");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
@@ -274,14 +286,14 @@ void update_tage_button_selection()
     
     {
       //Serial.println(tageButtonValues[i]);
-      if (currentMillis - startMillisButtonsSchutz[i] >= BUTTON_SCHUTZ_PERIODE)
-      {        
+      //if (currentMillis - startMillisButtonsSchutz[i] >= BUTTON_SCHUTZ_PERIODE)
+      //{        
         startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
-        if (digitalRead(buttonPins[i])) // Button Selection umkehren wenn Button gedrückt
+        if (tageButtons[i].capacitiveSensor(30) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
         {
           tageButtonValues[i] = !tageButtonValues[i];
         }
-      }
+      //}
     }
   }
 }
@@ -332,7 +344,7 @@ bool abfrage_ok_button()
   if (millis() - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
   {
     startMillisButtonsOkAbtast = millis(); // abtast Periode resetten
-    buttonOkValue = (digitalRead(OK_BUTTON) == HIGH);
+    buttonOkValue = (okButton.capacitiveSensor(30) > BUTTON_SCHWELLE);
     //Serial.println(buttonOkValue);
   }
   return buttonOkValue;
@@ -594,4 +606,6 @@ void loop()
     startMillisAuswerfen = currentMillis;
     break;
   }
+  Serial.print("Zeit für Durchlauf");
+  Serial.println(millis()-currentMillis);
 }
