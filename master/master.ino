@@ -30,7 +30,7 @@ int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
 
 // Einstellungen
 #define LED_PERIODE 1
-#define BUTTON_SCHUTZ_PERIODE 1000
+//#define BUTTON_SCHUTZ_PERIODE 1000
 #define BUTTON_TAG_ABTAST_PERIODE 100
 #define BUTTON_OK_ABTAST_PERIODE 100
 #define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
@@ -69,7 +69,7 @@ bool fuellStandBox[7];    // 0: nicht voll, 1: voll
 int blisterPosition; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
 
 int status; // 0: waiting for start, 1: turn to nupsi, 2: cut&press, 3: auswerfen, 4: Abbruch
-int sortiererPosition; // 0: not in position, 1: in position
+int sortiererPosition; // 0-6
 
 // Servo objekte erstellen
 Servo servoSortierer;
@@ -92,11 +92,6 @@ void setup()
   pinMode(E, INPUT);
   pinMode(LICHTSCHRANKE_PILLDROP, INPUT);
   pinMode(LICHTSCHRANKE_VORSCHUB, INPUT);
-  //pinMode(OK_BUTTON, INPUT);
-  // for (int i = 0; i < 7; i++)
-  // {
-  //   pinMode(buttonPins[i], INPUT);
-  // }
 
   // timer perioden starten
   startMillisLed = millis();
@@ -105,10 +100,10 @@ void setup()
   startMillisServoVorschub = millis();
   startMillisServoDruck = millis();
   startMillisServoSchneid = millis();
-  for (int i = 0; i < 7; i++)
-  {
-    startMillisButtonsSchutz[i] = millis();
-  }
+  // for (int i = 0; i < 7; i++)
+  // {
+  //   startMillisButtonsSchutz[i] = millis();
+  // }
 
 for (int i = 0; i<7; i++){
   fuellStandBox[i] = 0;
@@ -282,7 +277,7 @@ void update_tage_button_selection()
   {
     
     //Serial.println("Buttonvalues:");
-    for (int i = 1; i < 7; i++)
+    for (int i = 0; i < 7; i++)
     
     {
       //Serial.println(tageButtonValues[i]);
@@ -294,7 +289,7 @@ void update_tage_button_selection()
         {
           tageButtonValues[i] = !tageButtonValues[i];
         }
-        Serial.println(currentMillis-millis());
+        //Serial.println(currentMillis-millis());
         startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
       //}
     }
@@ -344,9 +339,9 @@ bool abfrage_ok_button()
    *
    */
   bool buttonOkValue = false;
-  if (millis() - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
+  if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
   {
-    startMillisButtonsOkAbtast = millis(); // abtast Periode resetten
+    startMillisButtonsOkAbtast = currentMillis; // abtast Periode resetten
     buttonOkValue = (okButton.capacitiveSensor(30) > BUTTON_SCHWELLE);
     //Serial.println(buttonOkValue);
   }
@@ -360,9 +355,9 @@ void abfrage_pilldrop_lichtschranke()
    */
   if (currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
   {
-    startMillisLSPilldropAbtast = millis(); // abtast Periode resetten
     if(analogRead(LICHTSCHRANKE_PILLDROP > LICHTSCHRANKE_SCHWELLE_PILLDROP)){
     fuellStandBox[sortiererPosition] = 1;
+    startMillisLSPilldropAbtast = currentMillis; // abtast Periode resetten
   }
   }
 }
@@ -416,7 +411,7 @@ bool vorschub_bis_nupsi()
       }
       else
       {
-        startMillisServoVorschub = millis();
+        startMillisServoVorschub = currentMillis;
       }
     }
   }
@@ -568,7 +563,7 @@ void ablauf()
   //sortierer_positionieren();
   // Serial.print("Status:");
   // Serial.println(status);
-  abfrage_pilldrop_lichtschranke();
+  //abfrage_pilldrop_lichtschranke();
 
   if (abfrage_fuellstand() && !(status == 4))
   {
@@ -623,7 +618,8 @@ void ablauf()
     }
     if (blisterPosition == 1)
     {
-      if (cut_blister())
+      bool donec = cut_blister();
+      if (donec)
       {
         status = 1; // blister positionieren
         LCD_schalten();
@@ -631,7 +627,8 @@ void ablauf()
     }
     else if (blisterPosition == 6)
     {
-      if (press_pill())
+      bool donep = press_pill();
+      if (donep)
       {
         status = 1; // blister positionieren
         LCD_schalten();
@@ -639,7 +636,9 @@ void ablauf()
     }
     else
     {
-      if (press_pill() && cut_blister())
+      bool donec = cut_blister();
+      bool donep = press_pill();
+      if (donep && donec)
       {
         status = 1; // blister positionieren
         LCD_schalten();
