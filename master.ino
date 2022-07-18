@@ -37,6 +37,8 @@ int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
 #define SERVO_VORSCHUB_SPEED 60 // max = 70
 #define AUSWERFZEIT 5000        // in ms
 #define BUTTON_SCHWELLE 200     //
+#define LICHTSCHRANKE_SCHWELLE_PILLDROP 150
+#define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
 
 unsigned long currentMillis;               // vergangene Zeit in ms seit Programmstart
 unsigned long startMillisLed;              // aktuelle LED periode
@@ -358,7 +360,7 @@ void abfrage_pilldrop_lichtschranke()
   if (currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
   {
     startMillisLSPilldropAbtast = millis(); // abtast Periode resetten
-    if(analogRead(LICHTSCHRANKE_PILLDROP > 150)){
+    if(analogRead(LICHTSCHRANKE_PILLDROP > LICHTSCHRANKE_SCHWELLE_PILLDROP)){
     fuellStandBox[sortiererPosition] = 1;
   }
   }
@@ -397,7 +399,7 @@ bool vorschub_bis_nupsi()
  */
 {
   bool nupsiInLichtschranke;
-  if (analogRead(LICHTSCHRANKE_VORSCHUB)<500) // Fall: Nupsi unterbricht Lichtschranke nicht
+  if (analogRead(LICHTSCHRANKE_VORSCHUB) < LICHTSCHRANKE_SCHWELLE_VORSCHUB) // Fall: Nupsi unterbricht Lichtschranke nicht
   {
     nupsiInLichtschranke = false;
     // 360 grad Servo PWM steuern
