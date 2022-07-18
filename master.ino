@@ -19,8 +19,8 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #define SERVO_PIN_DRUCK A2
 
 // lichtschranken pins
-#define LICHTSCHRANKE_PILLDROP A7
-#define LICHTSCHRANKE_VORSCHUB A6
+#define LICHTSCHRANKE_PILLDROP A7 //A7 nur als analog in möglich
+#define LICHTSCHRANKE_VORSCHUB A6 //A7 nur als analog in möglich
 
 // button pins
 #define OK_BUTTON A3
@@ -229,8 +229,8 @@ void LED_schalten()
     {
       ledIncrement = 0;
     }
-  }
-//}
+//  }
+}
 void lightshow()
 /**
  * @brief leuchtet alle LEDs auf
@@ -413,6 +413,11 @@ bool vorschub_bis_nupsi()
 }
 bool cut_blister()
 {
+  /**
+   * 
+   * @brief fährt schneide Servo vor, nach einer sekunde zurück und gibt nach zwei sekunden true zurück
+   * 
+   */ 
   bool done;
   if (currentMillis - startMillisServoSchneid >= 2000)
   {
@@ -432,6 +437,11 @@ bool cut_blister()
 }
 bool press_pill()
 {
+   /**
+   * 
+   * @brief fährt ausdrück Servo vor, nach einer sekunde zurück und gibt nach zwei sekunden true zurück
+   * 
+   */
   bool done;
   if (currentMillis - startMillisServoDruck >= 2000)
   {
