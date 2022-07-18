@@ -63,8 +63,8 @@ bool fuellStandBox[7];    // 0: nicht voll, 1: voll
 
 int blisterPosition; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
 
-int status; // 0: waiting for start, 1: turn to nupsi, 2: cut&press
-// int statusSortierer = 0; // 0: not in position, 1: in position
+int status; // 0: waiting for start, 1: turn to nupsi, 2: cut&press, 3: auswerfen, 4: Abbruch
+int sortiererPosition; // 0: not in position, 1: in position
 
 // Servo objekte erstellen
 Servo servoSortierer;
@@ -74,7 +74,7 @@ Servo servoDruck;
 
 void setup()
 {
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   pinMode(A, INPUT);
   pinMode(B, INPUT);
@@ -112,9 +112,9 @@ for (int i = 0; i<7; i++){
   lcd.init();          // Im Setup wird der LCD gestartet
   lcd.backlight();     // Hintergrundbeleuchtung einschalten (lcd.noBacklight(); schaltet die Beleuchtung aus).
   lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-  lcd.print("Die Pillenpopper");
+  lcd.print("Hallo! Geraet   ");
   lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-  lcd.print("sagen hallo!");
+  lcd.print("wird initiiert  ");
 
   // servos attachen und zurück stellen
   servoVorschub.attach(SERVO_PIN_VORSCHUB);
@@ -130,35 +130,35 @@ void LCD_schalten()
 {
   switch (status)
   {
-  case 0:
+  case 0: //waiting for start
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
     lcd.print("Tage waehlen und");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("mit ok starten");
+    lcd.print("mit ok starten  ");
     break;
-  case 1:
+  case 1: //turn to nupsi
     lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Box wird befuellt");
-    // lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    // lcd.print("mit ok bestätigen");
-    break;
-  case 2:
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Box wird befuellt");
-    // lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    // lcd.print("mit ok bestätigen");
-    break;
-  case 3:
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Box wird ausgeworfen");
-    // lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    // lcd.print("mit ok bestätigen");
-    break;
-  case 4:
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Abbruch! Auswerfen");
+    lcd.print("Blister wird    ");
     lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("mit ok bestätigen");
+    lcd.print("eingezogen      ");
+    break;
+  case 2: //cut&press
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Box wird        ");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("befuellt        ");
+    break;
+  case 3: //auswerfen
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Blister wird    ");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("ausgeworfen     ");
+    break;
+  case 4: //abbruch
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Abbruch! Aktoren");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("fahren zurueck  ");
     break;
   }
 }
@@ -176,6 +176,7 @@ void sortierer_positionieren()
     if ((tageButtonValues[i] == 1) && (fuellStandBox[i] == 0))
     {
       servoSortierer.write(winkeltabelle[i]);
+      sortiererPosition = i;
       break;
     }
   }
@@ -328,11 +329,11 @@ bool abfrage_ok_button()
    *
    */
   bool buttonOkValue = false;
-  if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
+  if (millis() - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
   {
-    startMillisButtonsOkAbtast = currentMillis; // abtast Periode resetten
+    startMillisButtonsOkAbtast = millis(); // abtast Periode resetten
     buttonOkValue = (digitalRead(OK_BUTTON) == HIGH);
-    Serial.println(buttonOkValue);
+    //Serial.println(buttonOkValue);
   }
   return buttonOkValue;
 }
@@ -345,8 +346,8 @@ void abfrage_pilldrop_lichtschranke()
   if (currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
   {
     startMillisLSPilldropAbtast = millis(); // abtast Periode resetten
-    if(digitalRead(LICHTSCHRANKE_PILLDROP)){
-    fuellStandBox[blisterPosition] = 1;
+    if(analogRead(LICHTSCHRANKE_PILLDROP > 150)){
+    fuellStandBox[sortiererPosition] = 1;
   }
   }
 }
@@ -384,7 +385,7 @@ bool vorschub_bis_nupsi()
  */
 {
   bool nupsiInLichtschranke;
-  if (!digitalRead(LICHTSCHRANKE_VORSCHUB)) // Fall: Nupsi unterbricht Lichtschranke nicht
+  if (analogRead(LICHTSCHRANKE_VORSCHUB)<500) // Fall: Nupsi unterbricht Lichtschranke nicht
   {
     nupsiInLichtschranke = false;
     // 360 grad Servo PWM steuern
@@ -406,9 +407,11 @@ bool vorschub_bis_nupsi()
   }
   else // Fall: Nupsi unterbricht Lichtschranke
   {
-    bool nupsiInLichtschranke = true;
+    nupsiInLichtschranke = true;
     servoVorschub.write(90); // Servo anhalten
   }
+  //Serial.print("nupsiInLichtschranke:");
+  //Serial.println(analogRead(LICHTSCHRANKE_VORSCHUB));
   return nupsiInLichtschranke;
 }
 bool cut_blister()
@@ -465,12 +468,13 @@ void loop()
   //LCD_schalten();
   LED_schalten();
   //sortierer_positionieren();
-
+  //Serial.print("Status:");
+  //Serial.println(status);
   abfrage_pilldrop_lichtschranke();
 
   if (abfrage_fuellstand() && !(status == 4))
   {
-    status = 3;
+    status = 3; //auswerfen
     LCD_schalten();
     startMillisAuswerfen = currentMillis; // auswerfen wenn fuellstand erreicht
   }
@@ -478,33 +482,35 @@ void loop()
   switch (status)
   {
   case 0: // wait for start
-    if (warte_auf_start())
+    if (warte_auf_start()) //true wenn ok button gedrückt
     {
-      status = 1;      
+      status = 1; //blister positionieren     
       LCD_schalten();
     }
     break;
   case 1: // blister positionieren
-    if (abfrage_ok_button())
+  /*
+    if (abfrage_ok_button()) //wenn ok gedrückt -> abbruch
     {
-      status = 4;
+      status = 4; //abbruch
       LCD_schalten();
       break;
     }
-    if (blisterPosition < 6)
+    */
+    if (blisterPosition < 6) // blisterPosition: Pille über Schneidestempel (0-6) 0: Blister noch nicht im System; 6: Pille 5 unter Druck Stempel
     {
-      if (vorschub_bis_nupsi())
+      if (vorschub_bis_nupsi()) //true wenn nupsi in lichtschranke
       {
         blisterPosition++;
-        status = 2;
+        status = 2; // press&cut
         LCD_schalten();
-        startMillisServoDruck = currentMillis;
+        startMillisServoDruck = currentMillis; 
         startMillisServoSchneid = currentMillis;
       }
     }
     else
     {
-      status = 3;
+      status = 3; //auswerfen
       LCD_schalten();
       startMillisAuswerfen = currentMillis;
     }
@@ -513,15 +519,15 @@ void loop()
   case 2: // press&cut
     if (abfrage_ok_button())
     {
-      status = 4;
+      status = 4; //abbruch
       LCD_schalten();
       break;
     }
     if (blisterPosition == 1)
     {
-      if (cut_blister())
+      if (cut_blister()) 
       {
-        status = 1;
+        status = 1; // blister positionieren
         LCD_schalten();
       }
     }
@@ -529,7 +535,7 @@ void loop()
     {
       if (press_pill())
       {
-        status = 1;
+        status = 1; // blister positionieren
         LCD_schalten();
       }
     }
@@ -537,7 +543,7 @@ void loop()
     {
       if (press_pill() && cut_blister())
       {
-        status = 1;
+        status = 1; // blister positionieren
         LCD_schalten();
       }
     }
@@ -569,10 +575,19 @@ void loop()
     servoDruck.write(5);
     servoSchneid.write(5);
     servoVorschub.write(90);
+
     delay(2000);
-    while (!abfrage_ok_button())
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Auswerfen mit   ");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print("ok bestaetigen  ");
+
+    while (1)
     {
-      LCD_schalten();
+      if (abfrage_ok_button())
+      {
+        break;
+      }
     }
     status = 3;
     LCD_schalten();
