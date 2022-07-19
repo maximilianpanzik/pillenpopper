@@ -395,7 +395,7 @@ bool abfrage_pilldrop_lichtschranke()
 //  if ((currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE))
 //  {
     
-    if (analogRead(LICHTSCHRANKE_PILLDROP) > LICHTSCHRANKE_SCHWELLE_PILLDROP && !lichtschrankePilldropDone)
+    if ((analogRead(LICHTSCHRANKE_PILLDROP) > LICHTSCHRANKE_SCHWELLE_PILLDROP) && !lichtschrankePilldropDone)
     {
       startMillisLSPilldropAbtast = currentMillis; // abtast Periode resetten
 //      if (currentMillis - startMillisLsPdSchutz >= LS_PD_SCHUTZ_PERIODE)
@@ -415,7 +415,7 @@ bool abfrage_pilldrop_lichtschranke()
 //    }
     
   }
-  else if(analogRead(LICHTSCHRANKE_PILLDROP) > LICHTSCHRANKE_SCHWELLE_PILLDROP && lichtschrankePilldropDone){
+  else if((analogRead(LICHTSCHRANKE_PILLDROP) > LICHTSCHRANKE_SCHWELLE_PILLDROP) && lichtschrankePilldropDone){
     return false;
   }
   else {
@@ -425,7 +425,8 @@ bool abfrage_pilldrop_lichtschranke()
   
   //}
   currentMillis = millis();
-}bool warte_auf_start()
+}
+bool warte_auf_start()
 {
   /**
    * @brief Liest Tag Button Values aus, speichert diese und gibt die eingestellten Tage
@@ -540,95 +541,12 @@ bool press_pill()
   }
   return done;
 }
-void testPillensortierer(){
-  tageButtonValues[0] = 0;
-  tageButtonValues[1] = 0;
-  tageButtonValues[2] = 0;
-  sortierer_positionieren();
-  sortierer_positionieren();
-  delay(1000);
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("sortierer sollte");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("auf 1 stehen    ");
-  delay(1000);
-  fuellStandBox[0] = 1;
-
-  sortierer_positionieren();
-    delay(1000);
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("sortierer sollte");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("auf 2 stehen    ");
-      delay(1000);
-    fuellStandBox[1] = 1;
-    fuellStandBox[2] = 1;
-      sortierer_positionieren();
-  delay(1000);
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("sortierer sollte");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("auf 4 stehen    ");
-  delay(5000);
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Test startet von");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("vorne           ");
-    delay(2000);
-
-  
-}
-void testAusdrucken(){
-  status = 2; // press&cut
-  LCD_schalten();
-  startMillisServoDruck = currentMillis;
-  startMillisServoSchneid = currentMillis;
-  while (1)
-  {
-    //Serial.println("presse");
-    bool donep = press_pill();
-    bool donec = cut_blister();
-    if (donep && donec)
-    {
-      status = 1; // blister positionieren
-      sortierer_positionieren();
-      LCD_schalten();
-      break;
-    }
-  }
-  delay(2000);
-  lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-  lcd.print("ausdruck test   ");
-  lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-  lcd.print("beendet         ");
-}
-void testVorschub()
-{
-}
-void testOkButton()
-{
-  if (okButton.capacitiveSensor(30) > BUTTON_SCHWELLE)
-  {
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Gedueckt        ");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("                ");
-  }
-  else
-  {
-    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
-    lcd.print("Nicht gedueckt  ");
-    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
-    lcd.print("                ");
-  }
-  delay(500);
-  //Serial.println(okButton.capacitiveSensor(30));
-}
 void ablauf()
 {
   currentMillis = millis(); // aktuelle Zeit speichern
   // LCD_schalten();
   LED_schalten();
+  sortierer_positionieren();
   //sortierer_positionieren();
   //Serial.print("pilldrop Lichtschranke:");
   //Serial.println(abfrage_pilldrop_lichtschranke());
@@ -650,7 +568,7 @@ void ablauf()
     if (start) // true wenn ok button gedrückt
     {
       status = 1; // blister positionieren
-      sortierer_positionieren();
+      //sortierer_positionieren();
       LCD_schalten();
     }
     break;}
@@ -699,7 +617,7 @@ void ablauf()
       if (donec)
       {
         status = 1; // blister positionieren
-        sortierer_positionieren();
+        //sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -709,7 +627,7 @@ void ablauf()
       if (donep)
       {
         status = 1; // blister positionieren
-        sortierer_positionieren();
+        //sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -720,7 +638,7 @@ void ablauf()
       if (donep && donec)
       {
         status = 1; // blister positionieren
-        sortierer_positionieren();
+        //sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -747,7 +665,7 @@ bool gefuellt = abfrage_fuellstand();
       {
         blisterPosition = 0;
         status = 1; // neuen blister einziehen
-        sortierer_positionieren();
+        //sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -777,14 +695,14 @@ bool gefuellt = abfrage_fuellstand();
     startMillisAuswerfen = currentMillis;
     break;}
   }
-  Serial.print("Lichtschranke:");
+/*   Serial.print("Lichtschranke:");
   Serial.println(abfrage_pilldrop_lichtschranke());
   Serial.println("ButtonValue, Fuellstand");
   for (int i = 1; i<7; i++)
   {
   Serial.print(tageButtonValues[i]);
   Serial.println(fuellStandBox[i]);
-  }
+  } */
 }
 void loop()
 {
@@ -793,9 +711,10 @@ void loop()
 
   //Serial.println(tageButtons[4].capacitiveSensorRaw(30));
 
-/*   Serial.print("Lichtschranke:");
-  Serial.println(abfrage_pilldrop_lichtschranke());
-  Serial.println("ButtonValue, Fuellstand");
+  // Serial.print("Lichtschranke:");
+  // Serial.println(abfrage_pilldrop_lichtschranke());
+
+/*   Serial.println("ButtonValue, Fuellstand");
   for (int i = 0; i<7; i++)
   {
   Serial.print(tageButtonValues[i]);
@@ -805,7 +724,7 @@ void loop()
   Serial.println(sortiererPosition);
   sortierer_positionieren();
   delay(500);
-  LED_schalten(); */
+  LED_schalten();  */
 
 
   ablauf();
