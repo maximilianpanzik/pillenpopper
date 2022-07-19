@@ -25,20 +25,24 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // button pins
 #define OK_BUTTON A3
-int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
+int buttonPins[7] = {1,0,6,5,4,3,2};//{2,3,4,5,6,0,1};
 #define CAPA_CLOCK 13
 
 // Einstellungen
 #define LED_PERIODE 1
-//#define BUTTON_SCHUTZ_PERIODE 1000
-#define BUTTON_TAG_ABTAST_PERIODE 100
-#define BUTTON_OK_ABTAST_PERIODE 100
-#define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
+//#define BUTTON_TAG_SCHUTZ_PERIODE 1000
+#define BUTTON_TAG_ABTAST_PERIODE 2
+#define BUTTON_OK_ABTAST_PERIODE 10
+#define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 5
 #define SERVO_VORSCHUB_SPEED 60 // max = 70
 #define AUSWERFZEIT 5000        // in ms
 #define BUTTON_SCHWELLE 70     //
-#define LICHTSCHRANKE_SCHWELLE_PILLDROP 150
+#define LICHTSCHRANKE_SCHWELLE_PILLDROP 70
 #define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
+#define BUTTON_TAG_SCHUTZ_PERIODE 500
+#define LICHTSCHRANKE_SCHUTZPERIODE 700
+#define LS_PD_SCHUTZ_PERIODE 500
+
 
 unsigned long currentMillis;               // vergangene Zeit in ms seit Programmstart
 unsigned long startMillisLed;              // aktuelle LED periode
@@ -50,6 +54,8 @@ unsigned long startMillisServoVorschub;    // aktuelle Servo Vorschub Periode
 unsigned long startMillisServoDruck;       // aktuelle Servo Druck Periode
 unsigned long startMillisServoSchneid;     // aktuelle Servo Schneid Periode
 unsigned long startMillisAuswerfen;        // aktuelle auswerf Periode
+unsigned long startMillisLichtschrankeSchutz; // aktuelle Lichtschranke Schutz Periode
+unsigned long startMillisLsPdSchutz; 
 
 int charlieplexingLeds[2][7][2] = // schaltplan, um LED # mit charlieplexing blau oder grün zu schalten
     {
@@ -65,11 +71,13 @@ bool fuellStandBox[7];    // 0: nicht voll, 1: voll
 //  bool tageButtonValues[7] = {1,1,1,1,1,1,1}; // 0: nicht aktiv, 1: aktiv
 //  bool fuellStandBox[7] = {0,0,0,0,0,0,0};    // 0: nicht voll, 1: voll
 
+bool sperrePilldropLichtschranke;
 
 int blisterPosition; // Pille über Schneidestempel (0-6) 0: Blister noch nicht im System 6: Pille 5 unter Druck Stempel
 
 int status; // 0: waiting for start, 1: turn to nupsi, 2: cut&press, 3: auswerfen, 4: Abbruch
 int sortiererPosition; // 0-6
+bool lichtschrankePilldropDone;
 
 // Servo objekte erstellen
 Servo servoSortierer;
@@ -78,7 +86,7 @@ Servo servoSchneid;
 Servo servoDruck;
 
 //capacitive Button Objekte erstellen
-CapacitiveSensor tageButtons[7] = {CapacitiveSensor(13, 0),CapacitiveSensor(13, 1),CapacitiveSensor(13, 2),CapacitiveSensor(13, 3),CapacitiveSensor(13, 4),CapacitiveSensor(13, 5),CapacitiveSensor(13, 6)};
+CapacitiveSensor tageButtons[7] = {CapacitiveSensor(13, 6),CapacitiveSensor(13, 5),CapacitiveSensor(13, 4),CapacitiveSensor(13, 3),CapacitiveSensor(13, 2),CapacitiveSensor(13, 1),CapacitiveSensor(13, 0)};
 CapacitiveSensor okButton = CapacitiveSensor(13, OK_BUTTON);
 
 void setup()
@@ -100,18 +108,23 @@ void setup()
   startMillisServoVorschub = millis();
   startMillisServoDruck = millis();
   startMillisServoSchneid = millis();
-  // for (int i = 0; i < 7; i++)
-  // {
-  //   startMillisButtonsSchutz[i] = millis();
-  // }
+  startMillisLSPilldropAbtast = millis();
+  startMillisLsPdSchutz = millis();
+
+   for (int i = 0; i < 7; i++)
+   {
+     startMillisButtonsSchutz[i] = millis();
+   }
 
 for (int i = 0; i<7; i++){
   fuellStandBox[i] = 0;
   tageButtonValues[i] = 1;
   }
   status = 0;
+  startMillisLichtschrankeSchutz = millis();
   blisterPosition = 0;
-
+ // sperrePilldropLichtschranke = true;
+  lichtschrankePilldropDone = false;
   // LCD
   lcd.init();          // Im Setup wird der LCD gestartet
   lcd.backlight();     // Hintergrundbeleuchtung einschalten (lcd.noBacklight(); schaltet die Beleuchtung aus).
@@ -134,7 +147,12 @@ for (int i = 0; i<7; i++){
   LCD_schalten();
 }
 void LCD_schalten()
-{
+{/*
+    lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
+    lcd.print("Sortierer Positi");
+    lcd.setCursor(0, 1); // In diesem Fall bedeutet (0,1) das erste Zeichen in der zweiten Zeile.
+    lcd.print(sortiererPosition); 
+  */
   switch (status)
   {
   case 0:                // waiting for start
@@ -238,8 +256,7 @@ void LED_schalten()
       ledIncrement = 0;
     }
 //  }
-}
-void lightshow()
+}void lightshow()
 /**
  * @brief leuchtet alle LEDs auf
  *
@@ -269,36 +286,36 @@ void update_tage_button_selection()
 {
   /**
    * @brief ändert für jeden Button periodisch nach BUTTON_TAG_ABTAST_PERIODE den selection
-   * Status wenn der Button gedrückt wurde und die BUTTON_SCHUTZ_PERIODE für diesen Button
+   * Status wenn der Button gedrückt wurde und die BUTTON_TAG_SCHUTZ_PERIODE für diesen Button
    * abgelaufen ist
    *
    */
-  if (currentMillis - startMillisButtonsTagAbtast >= BUTTON_TAG_ABTAST_PERIODE)
-   {
+  // if (millis() - startMillisButtonsTagAbtast >= BUTTON_TAG_ABTAST_PERIODE)
+   //{
     //Serial.println("Raw Values:");
     //Serial.println("Buttonvalues:");
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 5; i++)
     
     {
       //Serial.println(tageButtonValues[i]);
-      //if (currentMillis - startMillisButtonsSchutz[i] >= BUTTON_SCHUTZ_PERIODE)
-      //{        
+      if (currentMillis - startMillisButtonsSchutz[i] >= BUTTON_TAG_SCHUTZ_PERIODE)
+      {        
         
-        //startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
+        startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
         if (tageButtons[i].capacitiveSensorRaw(1) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
         {
-          tageButtonValues[7-i] = !tageButtonValues[7-i];
+          tageButtonValues[i] = !tageButtonValues[i];
           
         }
 
         //Serial.println(tageButtons[i].capacitiveSensorRaw(30));
 
         // Serial.println(currentMillis-millis());
-        //}
+        }
     }
     
-    startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
-  }
+  //  startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
+  //}
 }
 bool auf_neuen_blister_warten()
 {
@@ -317,22 +334,22 @@ bool blister_auswerfen()
   }
   else
   {
-    // 360 grad Servo PWM steuern
-    if (currentMillis - startMillisServoVorschub <= (70 - SERVO_VORSCHUB_SPEED))
-    {
+    // // 360 grad Servo PWM steuern
+    // if (currentMillis - startMillisServoVorschub <= (70 - SERVO_VORSCHUB_SPEED))
+    // {
       servoVorschub.write(180);
-    }
-    else
-    {
-      if (currentMillis - startMillisServoVorschub <= SERVO_VORSCHUB_SPEED)
-      {
-        servoVorschub.write(90);
-      }
-      else
-      {
-        startMillisServoVorschub = currentMillis;
-      }
-    }
+    // }
+    // else
+    // {
+    //   if (currentMillis - startMillisServoVorschub <= SERVO_VORSCHUB_SPEED)
+    //   {
+    //     servoVorschub.write(90);
+    //   }
+    //   else
+    //   {
+    //     startMillisServoVorschub = currentMillis;
+    //   }
+    // }
     return false;
   }
 }
@@ -353,21 +370,47 @@ bool abfrage_ok_button()
   }
   return buttonOkValue;
 }
-void abfrage_pilldrop_lichtschranke()
+bool abfrage_pilldrop_lichtschranke()
 {
   /**
    * @brief fragt periodisch den LS Wert ab und updatet fuellstand
    *
    */
-  if (currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
-  {
-    if(analogRead(LICHTSCHRANKE_PILLDROP > LICHTSCHRANKE_SCHWELLE_PILLDROP)){
-    fuellStandBox[sortiererPosition] = 1;
-    startMillisLSPilldropAbtast = currentMillis; // abtast Periode resetten
+
+//  if ((currentMillis - startMillisLSPilldropAbtast >= LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE))
+//  {
+    
+    if (analogRead(LICHTSCHRANKE_PILLDROP) > LICHTSCHRANKE_SCHWELLE_PILLDROP && !lichtschrankePilldropDone)
+    {
+      startMillisLSPilldropAbtast = currentMillis; // abtast Periode resetten
+//      if (currentMillis - startMillisLsPdSchutz >= LS_PD_SCHUTZ_PERIODE)
+//      {
+//        startMillisLsPdSchutz = millis();      
+//      fuellStandBox[sortiererPosition] = 1;
+//      
+//      sperrePilldropLichtschranke = true;
+      lichtschrankePilldropDone = true;
+      return true;
+//      }
+    
+//    else if (currentMillis - startMillisLSPilldropAbtast < LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE)
+//    {
+//      sperrePilldropLichtschranke = false;
+//      return false;
+//    }
+    
   }
+  else if(analogRead(LICHTSCHRANKE_PILLDROP) > LICHTSCHRANKE_SCHWELLE_PILLDROP && lichtschrankePilldropDone){
+    return false;
   }
-}
-bool warte_auf_start()
+  else {
+    lichtschrankePilldropDone = false;
+    return false;
+  }
+  
+  //}
+  currentMillis = millis();
+}bool warte_auf_start()
 {
   /**
    * @brief Liest Tag Button Values aus, speichert diese und gibt die eingestellten Tage
@@ -375,9 +418,9 @@ bool warte_auf_start()
    * @param okButtonValue periodische Abfrage von ok button (out)
    */
   bool okButtonValue = abfrage_ok_button();
-  Serial.print("OK Button:");
-  Serial.println(okButtonValue);
-  //update_tage_button_selection();
+  // Serial.print("OK Button:");
+  // Serial.println(okButtonValue);
+  update_tage_button_selection();
   return okButtonValue;
 }
 bool abfrage_fuellstand()
@@ -403,7 +446,7 @@ bool vorschub_bis_nupsi()
  */
 {
   bool nupsiInLichtschranke;
-  if (analogRead(LICHTSCHRANKE_VORSCHUB) < LICHTSCHRANKE_SCHWELLE_VORSCHUB) // Fall: Nupsi unterbricht Lichtschranke nicht
+  if ((millis()- startMillisLichtschrankeSchutz < LICHTSCHRANKE_SCHUTZPERIODE) || (analogRead(LICHTSCHRANKE_VORSCHUB) < LICHTSCHRANKE_SCHWELLE_VORSCHUB)) // Fall: Nupsi unterbricht Lichtschranke nicht
   {
     nupsiInLichtschranke = false;
     // 360 grad Servo PWM steuern
@@ -451,8 +494,9 @@ bool cut_blister()
   }
   else
   {
-    servoSchneid.write(65);
-    done = false;
+    //servoSchneid.write(65);
+    servoSchneid.write(60);
+    lichtschrankePilldropDone = false;
   }
   return done;
 }
@@ -475,8 +519,9 @@ bool press_pill()
   }
   else
   {
-    servoDruck.write(110);
-    done = false;
+    //servoDruck.write(110);
+    servoDruck.write(100);
+    lichtschrankePilldropDone = false;
   }
   return done;
 }
@@ -568,10 +613,10 @@ void ablauf()
   currentMillis = millis(); // aktuelle Zeit speichern
   // LCD_schalten();
   LED_schalten();
-  //sortierer_positionieren();
+  sortierer_positionieren();
   // Serial.print("Status:");
   // Serial.println(status);
-  //abfrage_pilldrop_lichtschranke();
+  abfrage_pilldrop_lichtschranke();
   bool gefuellt = abfrage_fuellstand();
   if (gefuellt && !(status == 4))
   {
@@ -716,7 +761,7 @@ bool gefuellt = abfrage_fuellstand();
 }
 void loop()
 {
-    currentMillis = millis(); // aktuelle Zeit speichern
+   // currentMillis = millis(); // aktuelle Zeit speichern
   // LCD_schalten();
 
   //Serial.println(tageButtons[4].capacitiveSensorRaw(30));
