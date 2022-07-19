@@ -36,7 +36,7 @@ int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
 #define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
 #define SERVO_VORSCHUB_SPEED 60 // max = 70
 #define AUSWERFZEIT 5000        // in ms
-#define BUTTON_SCHWELLE 700     //
+#define BUTTON_SCHWELLE 70     //
 #define LICHTSCHRANKE_SCHWELLE_PILLDROP 150
 #define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
 
@@ -274,7 +274,7 @@ void update_tage_button_selection()
    *
    */
   if (currentMillis - startMillisButtonsTagAbtast >= BUTTON_TAG_ABTAST_PERIODE)
-  {
+   {
     //Serial.println("Raw Values:");
     //Serial.println("Buttonvalues:");
     for (int i = 0; i < 7; i++)
@@ -285,9 +285,9 @@ void update_tage_button_selection()
       //{        
         
         //startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
-        if (tageButtons[i].capacitiveSensorRaw(30) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
+        if (tageButtons[i].capacitiveSensorRaw(1) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
         {
-          tageButtonValues[i] = !tageButtonValues[i];
+          tageButtonValues[7-i] = !tageButtonValues[7-i];
           
         }
 
@@ -344,10 +344,10 @@ bool abfrage_ok_button()
    *
    */
   bool buttonOkValue = false;
-  if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
-  {
+   if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
+   {
     startMillisButtonsOkAbtast = currentMillis; // abtast Periode resetten
-    buttonOkValue = (okButton.capacitiveSensorRaw(30) > BUTTON_SCHWELLE);
+    buttonOkValue = (okButton.capacitiveSensorRaw(1) > BUTTON_SCHWELLE);
     
     
   }
