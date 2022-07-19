@@ -36,7 +36,7 @@ int buttonPins[7] = {0, 1, 2, 3, 4, 5, 6};
 #define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 100
 #define SERVO_VORSCHUB_SPEED 60 // max = 70
 #define AUSWERFZEIT 5000        // in ms
-#define BUTTON_SCHWELLE 200     //
+#define BUTTON_SCHWELLE 700     //
 #define LICHTSCHRANKE_SCHWELLE_PILLDROP 150
 #define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
 
@@ -275,7 +275,7 @@ void update_tage_button_selection()
    */
   if (currentMillis - startMillisButtonsTagAbtast >= BUTTON_TAG_ABTAST_PERIODE)
   {
-    
+    //Serial.println("Raw Values:");
     //Serial.println("Buttonvalues:");
     for (int i = 0; i < 7; i++)
     
@@ -285,14 +285,19 @@ void update_tage_button_selection()
       //{        
         
         //startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
-        if (tageButtons[i].capacitiveSensor(30) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
+        if (tageButtons[i].capacitiveSensorRaw(30) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
         {
           tageButtonValues[i] = !tageButtonValues[i];
+          
         }
-        //Serial.println(currentMillis-millis());
-        startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
-      //}
+
+        //Serial.println(tageButtons[i].capacitiveSensorRaw(30));
+
+        // Serial.println(currentMillis-millis());
+        //}
     }
+    
+    startMillisButtonsTagAbtast = currentMillis; // abtast Periode resetten
   }
 }
 bool auf_neuen_blister_warten()
@@ -325,7 +330,7 @@ bool blister_auswerfen()
       }
       else
       {
-        startMillisServoVorschub = millis();
+        startMillisServoVorschub = currentMillis;
       }
     }
     return false;
@@ -342,8 +347,9 @@ bool abfrage_ok_button()
   if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
   {
     startMillisButtonsOkAbtast = currentMillis; // abtast Periode resetten
-    buttonOkValue = (okButton.capacitiveSensor(30) > BUTTON_SCHWELLE);
-    //Serial.println(buttonOkValue);
+    buttonOkValue = (okButton.capacitiveSensorRaw(30) > BUTTON_SCHWELLE);
+    
+    
   }
   return buttonOkValue;
 }
@@ -369,7 +375,9 @@ bool warte_auf_start()
    * @param okButtonValue periodische Abfrage von ok button (out)
    */
   bool okButtonValue = abfrage_ok_button();
-  update_tage_button_selection();
+  Serial.print("OK Button:");
+  Serial.println(okButtonValue);
+  //update_tage_button_selection();
   return okButtonValue;
 }
 bool abfrage_fuellstand()
@@ -564,8 +572,8 @@ void ablauf()
   // Serial.print("Status:");
   // Serial.println(status);
   //abfrage_pilldrop_lichtschranke();
-
-  if (abfrage_fuellstand() && !(status == 4))
+  bool gefuellt = abfrage_fuellstand();
+  if (gefuellt && !(status == 4))
   {
     status = 3; // auswerfen
     LCD_schalten();
@@ -574,16 +582,20 @@ void ablauf()
 
   switch (status)
   {
-  case 0:                  // wait for start
-    if (warte_auf_start()) // true wenn ok button gedrückt
+  case 0:
+  {
+    // wait for start
+    bool start = warte_auf_start();
+    if (start) // true wenn ok button gedrückt
     {
       status = 1; // blister positionieren
       LCD_schalten();
     }
-    break;
-  case 1:                    // blister positionieren
-
-    if (abfrage_ok_button()) // wenn ok gedrückt -> abbruch
+    break;}
+  case 1: 
+  {                   // blister positionieren
+  bool abfrage = abfrage_ok_button();
+    if (abfrage) // wenn ok gedrückt -> abbruch
     {
       status = 4; // abbruch
       LCD_schalten();
@@ -592,7 +604,8 @@ void ablauf()
 
     if (blisterPosition < 6) // blisterPosition: Pille über Schneidestempel (0-6) 0: Blister noch nicht im System; 6: Pille 5 unter Druck Stempel
     {
-      if (vorschub_bis_nupsi()) // true wenn nupsi in lichtschranke
+      bool vorschub = vorschub_bis_nupsi();
+      if (vorschub) // true wenn nupsi in lichtschranke
       {
         blisterPosition++;
         status = 2; // press&cut
@@ -608,9 +621,11 @@ void ablauf()
       startMillisAuswerfen = currentMillis;
     }
 
-    break;
+    break;}
   case 2: // press&cut
-    if (abfrage_ok_button())
+  {
+  bool abfrage = abfrage_ok_button();
+    if (abfrage)
     {
       status = 4; // abbruch
       LCD_schalten();
@@ -645,18 +660,21 @@ void ablauf()
       }
     }
 
-    break;
+    break;}
   case 3: // auswerfen
-    if (abfrage_ok_button())
+  {
+  bool abfrage = abfrage_ok_button();
+    if (abfrage)
     {
       status = 4;
       LCD_schalten();
       break;
     }
-    if (blister_auswerfen())
+    bool auswerf = blister_auswerfen();
+    if (auswerf)
     {
-
-      if (abfrage_fuellstand())
+bool gefuellt = abfrage_fuellstand();
+      if (gefuellt)
       {
         setup(); // reset
       }
@@ -667,8 +685,9 @@ void ablauf()
         LCD_schalten();
       }
     }
-    break;
+    break;}
   case 4: // abbruch
+  {
     servoDruck.write(5);
     servoSchneid.write(5);
     servoVorschub.write(90);
@@ -681,7 +700,8 @@ void ablauf()
 
     while (1)
     {
-      if (abfrage_ok_button())
+      bool abfrageOk = abfrage_ok_button();
+      if (abfrageOk)
       {
         break;
       }
@@ -689,13 +709,18 @@ void ablauf()
     status = 3;
     LCD_schalten();
     startMillisAuswerfen = currentMillis;
-    break;
+    break;}
   }
   //Serial.print("Zeit für Durchlauf");
   //Serial.println(millis() - currentMillis);
 }
 void loop()
 {
+    currentMillis = millis(); // aktuelle Zeit speichern
+  // LCD_schalten();
+
+  //Serial.println(tageButtons[4].capacitiveSensorRaw(30));
+
   ablauf();
   //currentMillis = millis();
   // light(charlieplexingLeds[1][0]);
