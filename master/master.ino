@@ -299,7 +299,7 @@ void update_tage_button_selection()
    //{
     //Serial.println("Raw Values:");
     //Serial.println("Buttonvalues:");
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 7; i++)
     
     {
       //Serial.println(tageButtonValues[i]);
@@ -670,10 +670,10 @@ void ablauf()
     {
       status = 1; // blister positionieren
       //sortierer_positionieren();
-      for(int i = 0; i<100;i++){
-        analogRead(LICHTSCHRANKE_PILLDROP);
-        delay(100);
-      }
+      // for(int i = 0; i<100;i++){
+      //   analogRead(LICHTSCHRANKE_PILLDROP);
+      //   delay(100);
+      // }
       LCD_schalten();
 
     }
