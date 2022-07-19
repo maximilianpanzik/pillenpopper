@@ -40,6 +40,7 @@ int buttonPins[7] = {1,0,6,5,4,3,2};//{2,3,4,5,6,0,1};
 #define LICHTSCHRANKE_SCHWELLE_PILLDROP 70
 #define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
 #define BUTTON_TAG_SCHUTZ_PERIODE 500
+#define BUTTON_OK_SCHUTZ_PERIODE 500
 #define LICHTSCHRANKE_SCHUTZPERIODE 700
 #define LS_PD_SCHUTZ_PERIODE 500
 
@@ -56,6 +57,7 @@ unsigned long startMillisServoSchneid;     // aktuelle Servo Schneid Periode
 unsigned long startMillisAuswerfen;        // aktuelle auswerf Periode
 unsigned long startMillisLichtschrankeSchutz; // aktuelle Lichtschranke Schutz Periode
 unsigned long startMillisLsPdSchutz; 
+unsigned long startMillisOkButtonsSchutz;
 
 int charlieplexingLeds[2][7][2] = // schaltplan, um LED # mit charlieplexing blau oder grün zu schalten
     {
@@ -194,14 +196,15 @@ void sortierer_positionieren()
    *
    */
 
-  int winkeltabelle[] = {0, 30, 60, 90, 120, 160, 180};
+  int winkeltabelle[] = {0, 30, 60, 90, 120, 150, 180};
   // erste unbefüllte zu befüllende kammer finden
   for (int i = 0; i < 7; i++)
   {
-    if ((tageButtonValues[i] == 1) && (fuellStandBox[i] == 0))
+    if ((tageButtonValues[i] == true) && (fuellStandBox[i] == false))
     {
-      servoSortierer.write(winkeltabelle[i]);
       sortiererPosition = i;
+      servoSortierer.write(winkeltabelle[i]);
+      
       break;
     }
   }
@@ -301,10 +304,11 @@ void update_tage_button_selection()
       if (currentMillis - startMillisButtonsSchutz[i] >= BUTTON_TAG_SCHUTZ_PERIODE)
       {        
         
-        startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
+        
         if (tageButtons[i].capacitiveSensorRaw(1) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
         {
           tageButtonValues[i] = !tageButtonValues[i];
+          startMillisButtonsSchutz[i] = currentMillis; // Button Schutz Periode resetten
           
         }
 
@@ -361,12 +365,23 @@ bool abfrage_ok_button()
    *
    */
   bool buttonOkValue = false;
-   if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
-   {
+  if (currentMillis - startMillisButtonsOkAbtast >= BUTTON_OK_ABTAST_PERIODE)
+  {
     startMillisButtonsOkAbtast = currentMillis; // abtast Periode resetten
-    buttonOkValue = (okButton.capacitiveSensorRaw(1) > BUTTON_SCHWELLE);
-    
-    
+
+    if (currentMillis - startMillisOkButtonsSchutz >= BUTTON_OK_SCHUTZ_PERIODE)
+    {
+
+      if (okButton.capacitiveSensorRaw(1) > BUTTON_SCHWELLE) // Button Selection umkehren wenn Button gedrückt
+      {
+        buttonOkValue = (okButton.capacitiveSensorRaw(1) > BUTTON_SCHWELLE);
+        startMillisOkButtonsSchutz = currentMillis; // Button Schutz Periode resetten
+      }
+
+      // Serial.println(tageButtons[i].capacitiveSensorRaw(30));
+
+      // Serial.println(currentMillis-millis());
+    }
   }
   return buttonOkValue;
 }
@@ -386,7 +401,7 @@ bool abfrage_pilldrop_lichtschranke()
 //      if (currentMillis - startMillisLsPdSchutz >= LS_PD_SCHUTZ_PERIODE)
 //      {
 //        startMillisLsPdSchutz = millis();      
-//      fuellStandBox[sortiererPosition] = 1;
+      fuellStandBox[sortiererPosition] = 1;
 //      
 //      sperrePilldropLichtschranke = true;
       lichtschrankePilldropDone = true;
@@ -496,7 +511,7 @@ bool cut_blister()
   {
     //servoSchneid.write(65);
     servoSchneid.write(60);
-    lichtschrankePilldropDone = false;
+    done = false;
   }
   return done;
 }
@@ -521,7 +536,7 @@ bool press_pill()
   {
     //servoDruck.write(110);
     servoDruck.write(100);
-    lichtschrankePilldropDone = false;
+    done = false;
   }
   return done;
 }
@@ -570,12 +585,13 @@ void testAusdrucken(){
   startMillisServoSchneid = currentMillis;
   while (1)
   {
-    Serial.println("presse");
+    //Serial.println("presse");
     bool donep = press_pill();
     bool donec = cut_blister();
     if (donep && donec)
     {
       status = 1; // blister positionieren
+      sortierer_positionieren();
       LCD_schalten();
       break;
     }
@@ -606,16 +622,16 @@ void testOkButton()
     lcd.print("                ");
   }
   delay(500);
-  Serial.println(okButton.capacitiveSensor(30));
+  //Serial.println(okButton.capacitiveSensor(30));
 }
 void ablauf()
 {
   currentMillis = millis(); // aktuelle Zeit speichern
   // LCD_schalten();
   LED_schalten();
-  sortierer_positionieren();
-  // Serial.print("Status:");
-  // Serial.println(status);
+  //sortierer_positionieren();
+  //Serial.print("pilldrop Lichtschranke:");
+  //Serial.println(abfrage_pilldrop_lichtschranke());
   abfrage_pilldrop_lichtschranke();
   bool gefuellt = abfrage_fuellstand();
   if (gefuellt && !(status == 4))
@@ -634,6 +650,7 @@ void ablauf()
     if (start) // true wenn ok button gedrückt
     {
       status = 1; // blister positionieren
+      sortierer_positionieren();
       LCD_schalten();
     }
     break;}
@@ -682,6 +699,7 @@ void ablauf()
       if (donec)
       {
         status = 1; // blister positionieren
+        sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -691,6 +709,7 @@ void ablauf()
       if (donep)
       {
         status = 1; // blister positionieren
+        sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -701,6 +720,7 @@ void ablauf()
       if (donep && donec)
       {
         status = 1; // blister positionieren
+        sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -727,6 +747,7 @@ bool gefuellt = abfrage_fuellstand();
       {
         blisterPosition = 0;
         status = 1; // neuen blister einziehen
+        sortierer_positionieren();
         LCD_schalten();
       }
     }
@@ -756,8 +777,14 @@ bool gefuellt = abfrage_fuellstand();
     startMillisAuswerfen = currentMillis;
     break;}
   }
-  //Serial.print("Zeit für Durchlauf");
-  //Serial.println(millis() - currentMillis);
+  Serial.print("Lichtschranke:");
+  Serial.println(abfrage_pilldrop_lichtschranke());
+  Serial.println("ButtonValue, Fuellstand");
+  for (int i = 1; i<7; i++)
+  {
+  Serial.print(tageButtonValues[i]);
+  Serial.println(fuellStandBox[i]);
+  }
 }
 void loop()
 {
@@ -766,7 +793,23 @@ void loop()
 
   //Serial.println(tageButtons[4].capacitiveSensorRaw(30));
 
+/*   Serial.print("Lichtschranke:");
+  Serial.println(abfrage_pilldrop_lichtschranke());
+  Serial.println("ButtonValue, Fuellstand");
+  for (int i = 0; i<7; i++)
+  {
+  Serial.print(tageButtonValues[i]);
+  Serial.println(fuellStandBox[i]);
+  }
+  Serial.print("Soriererpos: ");
+  Serial.println(sortiererPosition);
+  sortierer_positionieren();
+  delay(500);
+  LED_schalten(); */
+
+
   ablauf();
+
   //currentMillis = millis();
   // light(charlieplexingLeds[1][0]);
   // setup();
