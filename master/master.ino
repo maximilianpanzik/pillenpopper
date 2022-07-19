@@ -37,7 +37,7 @@ int buttonPins[7] = {1,0,6,5,4,3,2};//{2,3,4,5,6,0,1};
 #define SERVO_VORSCHUB_SPEED 60 // max = 70
 #define AUSWERFZEIT 5000        // in ms
 #define BUTTON_SCHWELLE 70     //
-#define LICHTSCHRANKE_SCHWELLE_PILLDROP 90
+#define LICHTSCHRANKE_SCHWELLE_PILLDROP 400
 #define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
 #define BUTTON_TAG_SCHUTZ_PERIODE 500
 #define BUTTON_OK_SCHUTZ_PERIODE 500
@@ -299,7 +299,7 @@ void update_tage_button_selection()
    //{
     //Serial.println("Raw Values:");
     //Serial.println("Buttonvalues:");
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 5; i++)
     
     {
       //Serial.println(tageButtonValues[i]);
@@ -594,7 +594,9 @@ void testAusdrucken(){
     bool donec = cut_blister();
     if (donep && donec)
     {
-      status = 1; // blister positionieren
+      status = 1; 
+      startMillisLichtschrankeSchutz = millis();
+      // blister positionieren
       //sortierer_positionieren();();
       LCD_schalten();
       break;
@@ -646,14 +648,14 @@ void ablauf()
   {
     sortierer_positionieren();
   }
-/*
+
   bool gefuellt = abfrage_fuellstand();
   if (gefuellt && !(status == 4))
   {
     status = 3; // auswerfen
     LCD_schalten();
     startMillisAuswerfen = currentMillis; // auswerfen wenn fuellstand erreicht
-  } */
+  } 
   
   // lcd.setCursor(0, 0); // Hier wird die Position des ersten Zeichens festgelegt. In diesem Fall bedeutet (0,0) das erste Zeichen in der ersten Zeile.
   //   lcd.print("Lichtschranke   ");
@@ -668,7 +670,9 @@ void ablauf()
     bool start = warte_auf_start();
     if (start) // true wenn ok button gedrückt
     {
-      status = 1; // blister positionieren
+      status = 1; 
+      startMillisLichtschrankeSchutz = millis();
+      // blister positionieren
       //sortierer_positionieren();
       // for(int i = 0; i<100;i++){
       //   analogRead(LICHTSCHRANKE_PILLDROP);
@@ -723,6 +727,7 @@ void ablauf()
       if (donec)
       {
         status = 1; // blister positionieren
+        startMillisLichtschrankeSchutz = millis();
         //sortierer_positionieren();();
         LCD_schalten();
       }
@@ -732,7 +737,9 @@ void ablauf()
       bool donep = press_pill();
       if (donep)
       {
-        status = 1; // blister positionieren
+        status = 1; 
+        startMillisLichtschrankeSchutz = millis();
+        // blister positionieren
         //sortierer_positionieren();();
         LCD_schalten();
       }
@@ -744,6 +751,7 @@ void ablauf()
       if (donep && donec)
       {
         status = 1; // blister positionieren
+        startMillisLichtschrankeSchutz = millis();
         //sortierer_positionieren();();
         LCD_schalten();
       }
@@ -770,7 +778,9 @@ bool gefuellt = abfrage_fuellstand();
       else
       {
         blisterPosition = 0;
-        status = 1; // neuen blister einziehen
+        status = 1; 
+        startMillisLichtschrankeSchutz = millis();
+        // neuen blister einziehen
         //sortierer_positionieren();();
         LCD_schalten();
       }
