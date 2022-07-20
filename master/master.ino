@@ -33,14 +33,17 @@ int buttonPins[7] = {1,0,6,5,4,3,2};//{2,3,4,5,6,0,1};
 //#define BUTTON_TAG_SCHUTZ_PERIODE 1000
 #define BUTTON_TAG_ABTAST_PERIODE 2
 #define BUTTON_OK_ABTAST_PERIODE 10
-#define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 200
-#define SERVO_VORSCHUB_SPEED 60 // max = 70
-#define AUSWERFZEIT 5000        // in ms
 #define BUTTON_SCHWELLE 70     //
-#define LICHTSCHRANKE_SCHWELLE_PILLDROP 400
-#define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
 #define BUTTON_TAG_SCHUTZ_PERIODE 500
 #define BUTTON_OK_SCHUTZ_PERIODE 500
+
+#define SERVO_VORSCHUB_SPEED 60 // max = 70
+#define AUSWERFZEIT 5000        // in ms
+
+#define LICHTSCHRANKE_PILLDROP_ABTAST_PERIODE 5 //50
+#define LICHTSCHRANKE_SCHWELLE_PILLDROP 365 //400
+
+#define LICHTSCHRANKE_SCHWELLE_VORSCHUB 500
 #define LICHTSCHRANKE_SCHUTZPERIODE 700
 #define LS_PD_SCHUTZ_PERIODE 500
 #define ABSTAND_PILLE_SORTIEREN 1000
@@ -198,7 +201,7 @@ void sortierer_positionieren()
    *
    */
 
-  int winkeltabelle[] = {0, 30, 60, 90, 120, 150, 180};
+  int winkeltabelle[] = {180,150,120,90,60,30,0};//{0, 30, 60, 90, 120, 150, 180}
   // erste unbefüllte zu befüllende kammer finden
   for (int i = 0; i < 7; i++)
   {
@@ -767,13 +770,22 @@ void ablauf()
       LCD_schalten();
       break;
     }
+
+
+bool gefuellt = abfrage_fuellstand();
+if(gefuellt){
+    servoDruck.write(5);
+    servoSchneid.write(5);
+    //servoVorschub.write(90);
+
+    delay(1000);
+}
     bool auswerf = blister_auswerfen();
     if (auswerf)
     {
-bool gefuellt = abfrage_fuellstand();
       if (gefuellt)
       {
-        setup(); // reset
+        setup(); // rese{}t
       }
       else
       {
